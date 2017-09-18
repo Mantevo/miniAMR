@@ -1,7 +1,7 @@
-CC   = cc
-LD   = cc
+CC   = mpicc
+LD   = mpicc
 CPPFLAGS = -I.
-CFLAGS = -O3 -fopenmp
+CFLAGS = -O3 -mcpu=power8 -mtune=power8 -fopenmp
 LDFLAGS =
 LDLIBS = -lm -lgomp
 
