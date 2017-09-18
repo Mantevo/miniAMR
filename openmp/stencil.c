@@ -88,7 +88,7 @@ void stencil_calc(int var, int stencil_in)
    int tid;
 
    if (stencil_in == 7) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -112,7 +112,7 @@ void stencil_calc(int var, int stencil_in)
       total_fp_divs += (double) num_active*num_cells;
       total_fp_adds += (double) 6*num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private (i, j, k, bp, sb, sm, sf)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -166,7 +166,7 @@ void stencil_0(int var)
    block *bp;
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -182,7 +182,7 @@ void stencil_0(int var)
       total_fp_adds += (double) mat*num_active*num_cells;
       total_fp_muls += (double) mat*num_active*num_cells;
     } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -199,7 +199,7 @@ void stencil_0(int var)
       total_fp_adds += (double) 3*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -219,7 +219,7 @@ void stencil_0(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -238,7 +238,7 @@ void stencil_0(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -267,7 +267,7 @@ void stencil_x(int var)
    block *bp;
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -285,7 +285,7 @@ void stencil_x(int var)
       total_fp_muls += (double) mat*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -303,7 +303,7 @@ void stencil_x(int var)
       total_fp_muls += (double) 2*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -341,7 +341,7 @@ void stencil_x(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -379,7 +379,7 @@ void stencil_x(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -426,7 +426,7 @@ void stencil_y(int var)
    block *bp;
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -445,7 +445,7 @@ void stencil_y(int var)
       total_fp_muls += (double) mat*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -463,7 +463,7 @@ void stencil_y(int var)
       total_fp_muls += (double) 2*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -501,7 +501,7 @@ void stencil_y(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -539,7 +539,7 @@ void stencil_y(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -587,7 +587,7 @@ void stencil_z(int var)
 
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -606,7 +606,7 @@ void stencil_z(int var)
       total_fp_muls += (double) mat*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -624,7 +624,7 @@ void stencil_z(int var)
       total_fp_muls += (double) 2*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -662,7 +662,7 @@ void stencil_z(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -700,7 +700,7 @@ void stencil_z(int var)
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -747,7 +747,7 @@ void stencil_7(int var)
    block *bp;
 
    if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -779,7 +779,7 @@ void stencil_7(int var)
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -811,7 +811,7 @@ void stencil_7(int var)
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -843,7 +843,7 @@ void stencil_7(int var)
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -884,7 +884,7 @@ void stencil_27(int var)
    block *bp;
 
    if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -929,7 +929,7 @@ void stencil_27(int var)
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -974,7 +974,7 @@ void stencil_27(int var)
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -1018,7 +1018,7 @@ void stencil_27(int var)
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
@@ -1071,7 +1071,7 @@ void stencil_check(int var)
    double work[x_block_size+2][y_block_size+2][z_block_size+2];
    block *bp;
 
-#pragma omp parallel default(shared) private(i, j, k)
+#pragma omp parallel default(shared) private(i, j, k, bp, v)
 {
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
       bp = &blocks[sorted_list[in].n];
