@@ -25,9 +25,6 @@
 // ************************************************************************
 
 max_num_blocks = 500;
-target_active = 0;
-target_max = 0;
-target_min = 0;
 num_refine = 5;
 uniform_refine = 0;
 x_block_size = 10;
@@ -59,5 +56,4 @@ lb_opt = 1;
 block_change = 0;
 code = 0;
 permute = 0;
-nonblocking = 1;
 refine_ghost = 0;

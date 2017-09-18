@@ -50,22 +50,15 @@ void comm_parent(void)
                  par_p.comm_part[i], type, MPI_COMM_WORLD, &request[i]);
 
    for (i = 0; i < par_b.num_comm_part; i++) {
-      if (nonblocking)
-         offset = par_b.index[i];
-      else
-         offset = 0;
+      offset = par_b.index[i];
       for (j = 0; j < par_b.comm_num[i]; j++)
          if (par_b.comm_b[par_b.index[i]+j] < 0)
             // parent, so send 0 (its parent can not refine)
             send_int[offset+j] = 0;
          else
             send_int[offset+j] = blocks[par_b.comm_b[par_b.index[i]+j]].refine;
-      if (nonblocking)
-         MPI_Isend(&send_int[par_b.index[i]], par_b.comm_num[i], MPI_INT,
-                   par_b.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
-      else
-         MPI_Send(&send_int[0], par_b.comm_num[i], MPI_INT,
-                  par_b.comm_part[i], type, MPI_COMM_WORLD);
+      MPI_Isend(&send_int[par_b.index[i]], par_b.comm_num[i], MPI_INT,
+                par_b.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
    }
 
    for (i = 0; i < par_p.num_comm_part; i++) {
@@ -81,9 +74,8 @@ void comm_parent(void)
          }
    }
 
-   if (nonblocking)
-      for (i = 0; i < par_b.num_comm_part; i++)
-         MPI_Waitany(par_b.num_comm_part, s_req, &which, &status);
+   for (i = 0; i < par_b.num_comm_part; i++)
+      MPI_Waitany(par_b.num_comm_part, s_req, &which, &status);
 }
 
 void comm_parent_reverse(void)
@@ -99,18 +91,11 @@ void comm_parent_reverse(void)
                  par_b.comm_part[i], type, MPI_COMM_WORLD, &request[i]);
 
    for (i = 0; i < par_p.num_comm_part; i++) {
-      if (nonblocking)
-         offset = par_p.index[i];
-      else
-         offset = 0;
+      offset = par_p.index[i];
       for (j = 0; j < par_p.comm_num[i]; j++)
          send_int[offset+j] = parents[par_p.comm_p[par_p.index[i]+j]].refine;
-      if (nonblocking)
-         MPI_Isend(&send_int[par_p.index[i]], par_p.comm_num[i], MPI_INT,
-                   par_p.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
-      else
-         MPI_Send(&send_int[0], par_p.comm_num[i], MPI_INT,
-                  par_p.comm_part[i], type, MPI_COMM_WORLD);
+      MPI_Isend(&send_int[par_p.index[i]], par_p.comm_num[i], MPI_INT,
+                par_p.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
    }
 
    for (i = 0; i < par_b.num_comm_part; i++) {
@@ -122,49 +107,8 @@ void comm_parent_reverse(void)
                blocks[par_b.comm_b[par_b.index[which]+j]].refine = 0;
    }
 
-   if (nonblocking)
-      for (i = 0; i < par_p.num_comm_part; i++)
-         MPI_Waitany(par_p.num_comm_part, s_req, &which, &status);
-}
-
-void comm_parent_unrefine(void)
-{
-   int i, j, which, type, offset;
-   int *send_int = (int *) send_buff;
-   int *recv_int = (int *) recv_buff;
-   MPI_Status status;
-
-   type = 22;
-   for (i = 0; i < par_b.num_comm_part; i++)
-      MPI_Irecv(&recv_int[par_b.index[i]], par_b.comm_num[i], MPI_INT,
-                 par_b.comm_part[i], type, MPI_COMM_WORLD, &request[i]);
-
-   for (i = 0; i < par_p.num_comm_part; i++) {
-      if (nonblocking)
-         offset = par_p.index[i];
-      else
-         offset = 0;
-      for (j = 0; j < par_p.comm_num[i]; j++)
-         send_int[offset+j] = parents[par_p.comm_p[par_p.index[i]+j]].refine;
-      if (nonblocking)
-         MPI_Isend(&send_int[par_p.index[i]], par_p.comm_num[i], MPI_INT,
-                   par_p.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
-      else
-         MPI_Send(&send_int[0], par_p.comm_num[i], MPI_INT,
-                  par_p.comm_part[i], type, MPI_COMM_WORLD);
-   }
-
-   for (i = 0; i < par_b.num_comm_part; i++) {
-      MPI_Waitany(par_b.num_comm_part, request, &which, &status);
-      for (j = 0; j < par_b.comm_num[which]; j++)
-         if (par_b.comm_b[par_b.index[which]+j] >= 0)
-            blocks[par_b.comm_b[par_b.index[which]+j]].refine =
-                  recv_int[par_b.index[which]+j];
-   }
-
-   if (nonblocking)
-      for (i = 0; i < par_p.num_comm_part; i++)
-         MPI_Waitany(par_p.num_comm_part, s_req, &which, &status);
+   for (i = 0; i < par_p.num_comm_part; i++)
+      MPI_Waitany(par_p.num_comm_part, s_req, &which, &status);
 }
 
 // Communicate new proc to parents - coordinate properly
@@ -222,10 +166,7 @@ void comm_parent_proc(void)
                  par_p.comm_part[i], type, MPI_COMM_WORLD, &request[i]);
 
    for (i = 0; i < par_b.num_comm_part; i++) {
-      if (nonblocking)
-         offset = par_b.index[i];
-      else
-         offset = 0;
+      offset = par_b.index[i];
       for (j = 0; j < par_b.comm_num[i]; j++)
          if (par_b.comm_b[par_b.index[i]+j] < 0)
             // parent and will not move, so send current processor
@@ -233,12 +174,8 @@ void comm_parent_proc(void)
          else
             send_int[offset+j] =
                                blocks[par_b.comm_b[par_b.index[i]+j]].new_proc;
-      if (nonblocking)
-         MPI_Isend(&send_int[par_b.index[i]], par_b.comm_num[i], MPI_INT,
-                   par_b.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
-      else
-         MPI_Send(&send_int[0], par_b.comm_num[i], MPI_INT,
-                  par_b.comm_part[i], type, MPI_COMM_WORLD);
+      MPI_Isend(&send_int[par_b.index[i]], par_b.comm_num[i], MPI_INT,
+                par_b.comm_part[i], type, MPI_COMM_WORLD, &s_req[i]);
    }
 
    for (i = 0; i < par_p1.num_comm_part; i++) {
@@ -265,9 +202,8 @@ void comm_parent_proc(void)
          }
    }
 
-   if (nonblocking)
-      for (i = 0; i < par_b.num_comm_part; i++)
-         MPI_Waitany(par_b.num_comm_part, s_req, &which, &status);
+   for (i = 0; i < par_b.num_comm_part; i++)
+      MPI_Waitany(par_b.num_comm_part, s_req, &which, &status);
 }
 
 // Below are routines for adding and deleting from arrays used above

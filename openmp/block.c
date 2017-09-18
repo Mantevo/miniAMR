@@ -76,7 +76,7 @@ void split_blocks(void)
                }
                if ((num_active + 8) > local_max_b)
                   local_max_b = num_active + 8;
-               del_sorted_list(bp->number, level);
+               del_sorted_list(bp->number, level, 1);
                num_active += 7;
                local_num_blocks[level]--;
                local_num_blocks[level+1] += 8;
@@ -398,7 +398,7 @@ void consolidate_blocks(void)
             // Copy child arrays back to new block.
             for (o = 0; o < 8; o++) {
                bp1 = &blocks[pp->child[o]];
-               del_sorted_list(bp1->number, (level+1));
+               del_sorted_list(bp1->number, (level+1), 2);
                bp1->number = -1;
                i1 = (o%2)*x_block_half;
                j1 = ((o/2)%2)*y_block_half;
@@ -555,48 +555,47 @@ void consolidate_blocks(void)
 
    // Go through blocks and check off node connections that are unrefining
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp = &blocks[n])->number >= 0)
-         for (c = 0; c < 6; c++)
-            if (bp->nei[c][0][0] < 0 && bp->nei_refine[c] == -1) {
-               level = bp->level;
-               dir = c/2;
-               fcase = (c%2)*10;
-               pe = -1 - bp->nei[c][0][0];
-               if (bp->nei_level[c] == level) {
-                  // go from "whole to whole" to "whole to quarter"
-                  bp->nei_level[c] = level - 1;
-                  del_comm_list(dir, n, pe, fcase+f);
-                  nl = bp->number - block_start[level];
-                  pos[2] = nl/((p2[level]*npx*init_block_x)*
-                               (p2[level]*npy*init_block_y));
-                  pos[1] = (nl%((p2[level]*npx*init_block_x)*
-                                (p2[level]*npy*init_block_y)))/
-                           (p2[level]*npx*init_block_x);
-                  pos[0] = nl%(p2[level]*npx*init_block_x);
-                  k = fcase + 2 + pos[mul[dir][0]]%2 + 2*(pos[mul[dir][1]]%2);
-                  d = 2*(c%2) - 1;
-                  add_comm_list(dir, n, pe, k, (bp->cen[mul[dir][1]]*
-                        mesh_size[mul[dir][0]] + bp->cen[mul[dir][0]]),
-                        (bp->cen[mul[dir][2]] + d*p2[num_refine-level]));
-               } else if (bp->nei_level[c] == level+1) {
-                  // go from "quarter to whole" to "whole to whole"
-                  for (k = fcase+6, i = 0; i < 2; i++)
-                     for (j = 0; j < 2; j++, k++)
-                        del_comm_list(dir, n, pe, k);
-                  d = 2*(c%2) - 1;
-                  add_comm_list(dir, n, pe, fcase+f, (bp->cen[mul[dir][1]]*
-                        mesh_size[mul[dir][0]] + bp->cen[mul[dir][0]]),
-                        (bp->cen[mul[dir][2]] + d*p2[num_refine-level]));
-                  bp->nei_level[c] = level;
-               } else {
-                  printf("%d ERROR: con nei block %d pe %d bad b %d %ld l %d %d\n",
-                         my_pe, c, pe, n, (long long) bp->number, level,
-                         bp->nei_level[c]);
-                  exit(-1);
-               }
-               bp->nei_refine[c] = 0;
+      bp = &blocks[n = sorted_list[in].n];
+      for (c = 0; c < 6; c++)
+         if (bp->nei[c][0][0] < 0 && bp->nei_refine[c] == -1) {
+            level = bp->level;
+            dir = c/2;
+            fcase = (c%2)*10;
+            pe = -1 - bp->nei[c][0][0];
+            if (bp->nei_level[c] == level) {
+               // go from "whole to whole" to "whole to quarter"
+               bp->nei_level[c] = level - 1;
+               del_comm_list(dir, n, pe, fcase+f);
+               nl = bp->number - block_start[level];
+               pos[2] = nl/((p2[level]*npx*init_block_x)*
+                            (p2[level]*npy*init_block_y));
+               pos[1] = (nl%((p2[level]*npx*init_block_x)*
+                             (p2[level]*npy*init_block_y)))/
+                        (p2[level]*npx*init_block_x);
+               pos[0] = nl%(p2[level]*npx*init_block_x);
+               k = fcase + 2 + pos[mul[dir][0]]%2 + 2*(pos[mul[dir][1]]%2);
+               d = 2*(c%2) - 1;
+               add_comm_list(dir, n, pe, k, (bp->cen[mul[dir][1]]*
+                     mesh_size[mul[dir][0]] + bp->cen[mul[dir][0]]),
+                     (bp->cen[mul[dir][2]] + d*p2[num_refine-level]));
+            } else if (bp->nei_level[c] == level+1) {
+               // go from "quarter to whole" to "whole to whole"
+               for (k = fcase+6, i = 0; i < 2; i++)
+                  for (j = 0; j < 2; j++, k++)
+                     del_comm_list(dir, n, pe, k);
+               d = 2*(c%2) - 1;
+               add_comm_list(dir, n, pe, fcase+f, (bp->cen[mul[dir][1]]*
+                     mesh_size[mul[dir][0]] + bp->cen[mul[dir][0]]),
+                     (bp->cen[mul[dir][2]] + d*p2[num_refine-level]));
+               bp->nei_level[c] = level;
+            } else {
+               printf("%d ERROR: con nei block %d pe %d bad b %d %ld l %d %d\n",
+                      my_pe, c, pe, n, (long long) bp->number, level,
+                      bp->nei_level[c]);
+               exit(-1);
             }
+            bp->nei_refine[c] = 0;
+         }
    }
 }
 
@@ -617,7 +616,7 @@ void add_sorted_list(int n, num_sz number, int level)
       sorted_index[i]++;
 }
 
-void del_sorted_list(num_sz number, int level)
+void del_sorted_list(num_sz number, int level, int from)
 {
    int i, j;
 
@@ -625,8 +624,8 @@ void del_sorted_list(num_sz number, int level)
       if (number == sorted_list[i].number)
          break;
    if (number != sorted_list[i].number) {
-      printf("ERROR: del_sorted_list on %d - number %ld not found\n",
-             my_pe, (long long) number);
+      printf("ERROR: del_sorted_list on %d - number %ld not found l %d f %d\n",
+             my_pe, (long long) number, level, from);
       exit(-1);
    }
    for (j = level+1; j <= (num_refine+1); j++)

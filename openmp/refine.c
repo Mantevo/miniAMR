@@ -66,13 +66,11 @@ void refine(int ts)
       reset_all();
       if (uniform_refine) {
          for (in = 0; in < sorted_index[num_refine+1]; in++) {
-            n = sorted_list[in].n;
-            bp = &blocks[n];
-            if (bp->number >= 0)
-               if (bp->level < num_refine)
-                  bp->refine = 1;
-               else
-                  bp->refine = 0;
+            bp = &blocks[sorted_list[in].n];
+            if (bp->level < num_refine)
+               bp->refine = 1;
+            else
+               bp->refine = 0;
          }
       } else {
          t2 = timer();
@@ -176,31 +174,6 @@ void refine(int ts)
    timer_cb_mv += tm;
    timer_cb_un += tu;
 
-   if (target_active || target_max || target_min) {
-      if (!my_pe) {
-         for (j = 0; j <= num_refine; j++)
-            printf("Number of blocks at level %d before target %d is %ld\n",
-                   j, ts, num_blocks[j]);
-         printf("\n");
-      }
-      t2 = timer();
-      global_active = num_blocks[0];
-      for (i = 1; i <= num_refine; i++)
-         global_active += num_blocks[i];
-      // Will not be able to get to target in all cases, but can get to
-      // a range of target +- 3 since can add or subtract in units of
-      // 7 blocks.
-      if ((target_active && global_active > num_pes*target_active + 3) ||
-          (target_max && global_active > num_pes*target_max))
-         nm_t += reduce_blocks();
-      else if ((target_active && global_active < num_pes*target_active - 3) ||
-               (target_min && global_active < num_pes*target_min))
-         add_blocks();
-      check_buff_size();
-      t5 = timer();
-      timer_target_all += t5 - t2;
-      t4 += t5 - t2;
-   }
    t2 = timer();
    if (num_active > local_max_b)
       local_max_b = num_active;
@@ -254,7 +227,7 @@ void refine(int ts)
 
 int refine_level(void)
 {
-   int level, nei, n, i, j, b, c, c1, change, lchange, unrefine, sib, p, in;
+   int level, nei, i, j, b, c, c1, change, lchange, unrefine, sib, p, in;
    block *bp, *bp1;
    parent *pp;
 
@@ -274,10 +247,10 @@ int refine_level(void)
       */
       do {
          lchange = 0;
+// think about this - isolate by level #pragma omp parallel for private(in, bp, i, p, pp, b, nei) reduction(+: lchange)
          for (in = sorted_index[level]; in < sorted_index[level+1]; in++) {
-            n = sorted_list[in].n;
-            bp = &blocks[n];
-            if (bp->number >= 0 && bp->level == level) {
+            bp = &blocks[sorted_list[in].n];
+            if (bp->level == level) {
                if (bp->refine == 1) {
                   if (bp->parent != -1 && bp->parent_node == my_pe) {
                      pp = &parents[bp->parent];
@@ -369,42 +342,40 @@ int refine_level(void)
       do {
          lchange = 0;
          for (in = sorted_index[level]; in < sorted_index[level+1]; in++) {
-            n = sorted_list[in].n;
-            bp = &blocks[n];
-            if (bp->number >= 0)
-               if (bp->level == level && bp->refine == 0)
-                  for (c = 0; c < 6; c++)
-                     if (bp->nei_level[c] == level-1) {
-                        if ((nei = bp->nei[c][0][0]) >= 0) {
-                           if (blocks[nei].refine == -1) {
-                              blocks[nei].refine = 0;
-                              lchange++;
-                              if ((p = blocks[nei].parent) != -1 &&
-                                    blocks[nei].parent_node == my_pe)
-                                 if ((pp = &parents[p])->refine == -1) {
-                                    pp->refine = 0;
-                                    for (b = 0; b < 8; b++)
-                                       if (pp->child_node[b] == my_pe &&
-                                           pp->child[b] >= 0 &&
-                                           blocks[pp->child[b]].refine == -1)
-                                          blocks[pp->child[b]].refine = 0;
-                                 }
-                           }
-                        } else
-                           if (bp->nei_refine[c] == -1) {
-                              bp->nei_refine[c] = 0;
-                              lchange++;
-                           }
-                     } else if (bp->nei_level[c] == level) {
-                        if ((nei = bp->nei[c][0][0]) >= 0)
-                           blocks[nei].nei_refine[(c/2)*2+(c+1)%2] = 0;
-                     } else if (bp->nei_level[c] == level+1) {
-                        c1 = (c/2)*2 + (c+1)%2;
-                        for (i = 0; i < 2; i++)
-                           for (j = 0; j < 2; j++)
-                              if ((nei = bp->nei[c][i][j]) >= 0)
-                                 blocks[nei].nei_refine[c1] = 0;
-                     }
+            bp = &blocks[sorted_list[in].n];
+            if (bp->level == level && bp->refine == 0)
+               for (c = 0; c < 6; c++)
+                  if (bp->nei_level[c] == level-1) {
+                     if ((nei = bp->nei[c][0][0]) >= 0) {
+                        if (blocks[nei].refine == -1) {
+                           blocks[nei].refine = 0;
+                           lchange++;
+                           if ((p = blocks[nei].parent) != -1 &&
+                                 blocks[nei].parent_node == my_pe)
+                              if ((pp = &parents[p])->refine == -1) {
+                                 pp->refine = 0;
+                                 for (b = 0; b < 8; b++)
+                                    if (pp->child_node[b] == my_pe &&
+                                        pp->child[b] >= 0 &&
+                                        blocks[pp->child[b]].refine == -1)
+                                       blocks[pp->child[b]].refine = 0;
+                              }
+                        }
+                     } else
+                        if (bp->nei_refine[c] == -1) {
+                           bp->nei_refine[c] = 0;
+                           lchange++;
+                        }
+                  } else if (bp->nei_level[c] == level) {
+                     if ((nei = bp->nei[c][0][0]) >= 0)
+                        blocks[nei].nei_refine[(c/2)*2+(c+1)%2] = 0;
+                  } else if (bp->nei_level[c] == level+1) {
+                     c1 = (c/2)*2 + (c+1)%2;
+                     for (i = 0; i < 2; i++)
+                        for (j = 0; j < 2; j++)
+                           if ((nei = bp->nei[c][i][j]) >= 0)
+                              blocks[nei].nei_refine[c1] = 0;
+                  }
          }
 
          MPI_Allreduce(&lchange, &change, 1, MPI_INT, MPI_SUM,
@@ -432,18 +403,16 @@ int refine_level(void)
 // can set those which can be refined.
 void reset_all(void)
 {
-   int n, c, in;
+   int c, in, n;
    block *bp;
    parent *pp;
 
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp= &blocks[n])->number >= 0) {
-         bp->refine = -1;
-         for (c = 0; c < 6; c++)
-            if (bp->nei_level[c] >= 0)
-               bp->nei_refine[c] = -1;
-      }
+      bp = &blocks[sorted_list[in].n];
+      bp->refine = -1;
+      for (c = 0; c < 6; c++)
+         if (bp->nei_level[c] >= 0)
+            bp->nei_refine[c] = -1;
    }
 
    for (n = 0; n < max_active_parent; n++)
@@ -464,15 +433,14 @@ void reset_all(void)
 // that have just been split.
 void reset_neighbors(void)
 {
-   int n, c, in;
+   int c, in;
    block *bp;
 
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp= &blocks[n])->number >= 0)
-         for (c = 0; c < 6; c++)
-            if (bp->nei_level[c] >= 0 && bp->nei[c][0][0] < 0)
-               bp->nei_refine[c] = -1;
+      bp = &blocks[sorted_list[in].n];
+      for (c = 0; c < 6; c++)
+         if (bp->nei_level[c] >= 0 && bp->nei[c][0][0] < 0)
+            bp->nei_refine[c] = -1;
    }
 }
 
@@ -559,15 +527,14 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
       my_active = num_active + 7*use[my_pe] + 1;
 
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp = &blocks[n])->number >= 0)
-         if (bp->refine == -1 && bp->parent_node != my_pe) {
-            bp->new_proc = bp->parent_node;
-            from[bp->parent_node]++;
-            my_active--;
-            m++;
-            (*num_moved)++;
-         }
+      bp = &blocks[sorted_list[in].n];
+      if (bp->refine == -1 && bp->parent_node != my_pe) {
+         bp->new_proc = bp->parent_node;
+         from[bp->parent_node]++;
+         my_active--;
+         m++;
+         (*num_moved)++;
+      }
    }
    for (p = 0; p < max_active_parent; p++)
       if ((pp = &parents[p])->number >= 0 && pp->refine == -1)

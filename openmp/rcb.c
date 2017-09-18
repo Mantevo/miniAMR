@@ -57,21 +57,19 @@ void load_balance(void)
    t3 = t4 = t5 = 0.0;
    t1 = timer();
    for (in = 0, num_dots = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp = &blocks[n])->number >= 0) {
-         bp->new_proc = my_pe;
-         if ((num_dots+1) > max_num_dots) {
-            printf("%d ERROR: need more dots\n", my_pe);
-            exit(-1);
-         }
-         dots[num_dots].cen[0] = bp->cen[0];
-         dots[num_dots].cen[1] = bp->cen[1];
-         dots[num_dots].cen[2] = bp->cen[2];
-         dots[num_dots].number = bp->number;
-         dots[num_dots].n = n;
-         dots[num_dots].proc = my_pe;
-         dots[num_dots++].new_proc = 0;
+      bp = &blocks[n = sorted_list[in].n];
+      bp->new_proc = my_pe;
+      if ((num_dots+1) > max_num_dots) {
+         printf("%d ERROR: need more dots\n", my_pe);
+         exit(-1);
       }
+      dots[num_dots].cen[0] = bp->cen[0];
+      dots[num_dots].cen[1] = bp->cen[1];
+      dots[num_dots].cen[2] = bp->cen[2];
+      dots[num_dots].number = bp->number;
+      dots[num_dots].n = n;
+      dots[num_dots].proc = my_pe;
+      dots[num_dots++].new_proc = 0;
    }
    max_active_dot = num_dots;
    for (n = num_dots; n < max_num_dots; n++)
@@ -134,7 +132,7 @@ void exchange(double *tp, double *tm, double *tu)
    double t1, t2, t3, t4;
    MPI_Status status;
 
-   block_size = 47 + num_vars*x_block_size*y_block_size*z_block_size;
+   block_size = 47 + num_vars*num_cells;
    type = 40;
    type1 = 41;
 
@@ -178,7 +176,7 @@ void exchange(double *tp, double *tm, double *tu)
                   t3 += timer() - t2;
                   num_active--;
                   local_num_blocks[blocks[sp].level]--;
-                  del_sorted_list(blocks[sp].number, blocks[sp].level);
+                  del_sorted_list(blocks[sp].number, blocks[sp].level, 3);
                   blocks[sp].number = -1;
                   MPI_Send(send_buff, block_size, MPI_DOUBLE, start[l], type,
                            MPI_COMM_WORLD);
@@ -621,8 +619,8 @@ void move_blocks(double *tp, double *tm, double *tu)
    // go through blocks being moved and reset their nei[] list
    // (partially done above with comm_proc) and the lists of their neighbors
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp = &blocks[n])->number >= 0 && bp->new_proc != my_pe) {
+      bp = &blocks[n = sorted_list[in].n];
+      if (bp->new_proc != my_pe) {
          for (c = 0; c < 6; c++) {
             c1 = (c/2)*2 + (c+1)%2;
             dir = c/2;
@@ -711,8 +709,8 @@ void move_blocks(double *tp, double *tm, double *tu)
 
    // reestablish on-core and off-core comm lists
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      if ((bp = &blocks[n])->number >= 0 && bp->new_proc == -1) {
+      bp = &blocks[n = sorted_list[in].n];
+      if (bp->new_proc == -1) {
          nl = bp->number - block_start[bp->level];
          pos[2] = nl/((p2[bp->level]*npx*init_block_x)*
                       (p2[bp->level]*npy*init_block_y));

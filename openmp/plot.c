@@ -82,6 +82,8 @@ void plot(int ts)
          for (n = j = 0; j < size; j++, n += 4)
             fprintf(fp, "%d %d %d %d\n", buf[n], buf[n+1], buf[n+2], buf[n+3]);
       }
+      if (buf_size)
+         free(buf);
       fclose(fp);
    } else {
       total_num_blocks = 0;
@@ -100,5 +102,6 @@ void plot(int ts)
       MPI_Send(&total_num_blocks, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
       MPI_Recv(&size, 1, MPI_INT, 0, 4, MPI_COMM_WORLD, &status);
       MPI_Send(buf, 4*total_num_blocks, MPI_INT, 0, 3, MPI_COMM_WORLD);
+      free(buf);
    }
 }

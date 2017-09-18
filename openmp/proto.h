@@ -36,7 +36,7 @@ int check_input(void);
 void split_blocks(void);
 void consolidate_blocks(void);
 void add_sorted_list(int, num_sz, int);
-void del_sorted_list(num_sz, int);
+void del_sorted_list(num_sz, int, int);
 int find_sorted_list(num_sz, int);
 
 // check_sum.c
@@ -56,7 +56,6 @@ void apply_bc(int, block *, int, int);
 // comm_parent.c
 void comm_parent(void);
 void comm_parent_reverse(void);
-void comm_parent_unrefine(void);
 void comm_parent_proc(void);
 void add_par_list(par_comm *, num_sz, num_sz, int, int, int);
 void del_par_list(par_comm *, num_sz, num_sz, int, int);
@@ -64,7 +63,6 @@ void del_par_list(par_comm *, num_sz, num_sz, int, int);
 // comm_refine.c
 void comm_refine(void);
 void comm_reverse_refine(void);
-void comm_refine_unrefine(void);
 
 // comm_util.c
 void add_comm_list(int, int, int, int, int, int);
@@ -115,12 +113,8 @@ void reset_neighbors(void);
 void redistribute_blocks(double *, double *, double *, double *, int *, int);
 
 // stencil.c
+//void stencil_driver(block *, int, int);
 void stencil_driver(int, int);
-
-// target.c
-int reduce_blocks();
-void add_blocks();
-void zero_refine(void);
 
 // util.c
 double timer(void);

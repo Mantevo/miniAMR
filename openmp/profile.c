@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <mpi.h>
+#include <omp.h>
 
 #include "block.h"
 #include "comm.h"
@@ -36,13 +37,14 @@
 // Profiling output.
 void profile(void)
 {
-   int i;
+   int i, ompt;
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
           total_fp_divs;
    object *op;
-   char *version = "1.3";
+   char *version = "1.4? w/OpenMP";
    FILE *fp;
 
+   ompt = omp_get_max_threads();
    calculate_results();
    total_fp_ops = average[128] + average[129] + average[130];
    total_gflops = total_fp_ops/(average[38]*1024.0*1024.0*1024.0);
@@ -63,6 +65,7 @@ void profile(void)
          fprintf(fp, "x_block_size: %d\n", x_block_size);
          fprintf(fp, "y_block_size: %d\n", y_block_size);
          fprintf(fp, "z_block_size: %d\n", z_block_size);
+         fprintf(fp, "threads: %d\n", ompt);
          fprintf(fp, "reorder: %d\n", reorder);
          fprintf(fp, "permute: %d\n", permute);
          fprintf(fp, "max_blocks_allowed: %d\n", max_num_blocks);
@@ -91,7 +94,6 @@ void profile(void)
          }
          fprintf(fp, "num_tsteps: %d\n", num_tsteps);
          fprintf(fp, "stages_per_timestep: %d\n", stages_per_ts);
-         fprintf(fp, "nonblocking: %d\n", nonblocking);
          fprintf(fp, "checksum_freq: %d\n", checksum_freq);
          fprintf(fp, "refine_freq: %d\n", refine_freq);
          fprintf(fp, "lb_opt: %d\n", lb_opt);
@@ -461,6 +463,7 @@ void profile(void)
 
          fprintf(fp, "Run on %d ranks arranged in a %d x %d x %d grid\n", num_pes,
                 npx, npy, npz);
+         fprintf(fp, "Threads per rank %d\n", ompt);
          fprintf(fp, "initial blocks per rank %d x %d x %d\n", init_block_x,
                 init_block_y, init_block_z);
          fprintf(fp, "block size %d x %d x %d\n", x_block_size, y_block_size,
@@ -473,15 +476,6 @@ void profile(void)
             fprintf(fp, "Order of exchanges permuted\n");
          fprintf(fp, "Maximum number of blocks per rank is %d\n",
                  max_num_blocks);
-         if (target_active)
-            fprintf(fp, "Target number of blocks per rank is %d\n",
-                    target_active);
-         if (target_max)
-            fprintf(fp, "Target max number of blocks per rank is %d\n",
-                    target_max);
-         if (target_min)
-            fprintf(fp, "Target min number of blocks per rank is %d\n",
-                    target_min);
          if (code)
             fprintf(fp, "Code set to code %d\n", code);
          fprintf(fp, "Number of levels of refinement is %d\n", num_refine);
@@ -571,10 +565,7 @@ void profile(void)
             fprintf(fp, "\nNumber of timesteps is %d\n", num_tsteps);
          fprintf(fp, "Communicaion/computation stages per timestep is %d\n",
                 stages_per_ts);
-         if (nonblocking)
-            fprintf(fp, "Communication will be performed with nonblocking sends\n");
-         else
-            fprintf(fp, "Communication will be performed with blocking sends\n");
+         fprintf(fp, "Communication will be performed with nonblocking sends\n");
          fprintf(fp, "Will perform checksums every %d stages\n", checksum_freq);
          fprintf(fp, "Will refine every %d timesteps\n", refine_freq);
          if (lb_opt == 0)
@@ -734,9 +725,6 @@ void profile(void)
                  average[122]*num_pes);
          fprintf(fp, "     total moved coasening  : %lf\n",
                  average[109]*num_pes);
-         if (target_active)
-            fprintf(fp, "     total moved reducing   : %lf\n",
-                    average[108]*num_pes);
          fprintf(fp, "                              average    stddev  minimum  maximum\n");
          fprintf(fp, "     Per processor:\n");
          fprintf(fp, "     total blocks split     : %lf %lf %lf %lf\n",
@@ -751,9 +739,6 @@ void profile(void)
                 average[122], stddev[122], minimum[122], maximum[122]);
          fprintf(fp, "     Blocks moved coarsening: %lf %lf %lf %lf\n",
                 average[109], stddev[109], minimum[109], maximum[109]);
-         if (target_active)
-            fprintf(fp, "     Blocks moved reducing  : %lf %lf %lf %lf\n",
-                   average[108], stddev[108], minimum[108], maximum[108]);
          fprintf(fp, "     Time:\n");
          fprintf(fp, "        compare objects     : %lf %lf %lf %lf\n",
                 average[43], stddev[43], minimum[43], maximum[43]);
@@ -789,28 +774,6 @@ void profile(void)
                 average[126], stddev[126], minimum[126], maximum[126]);
          fprintf(fp, "           unpack blocks    : %lf %lf %lf %lf\n",
                 average[127], stddev[127], minimum[127], maximum[127]);
-         if (target_active) {
-            fprintf(fp, "        total target active : %lf %lf %lf %lf\n",
-                average[52], stddev[52], minimum[52], maximum[52]);
-            fprintf(fp, "          reduce blocks     : %lf %lf %lf %lf\n",
-                average[53], stddev[53], minimum[53], maximum[53]);
-            fprintf(fp, "            decide and comm : %lf %lf %lf %lf\n",
-                average[54], stddev[54], minimum[54], maximum[54]);
-            fprintf(fp, "            pack blocks     : %lf %lf %lf %lf\n",
-                average[55], stddev[55], minimum[55], maximum[55]);
-            fprintf(fp, "            move blocks     : %lf %lf %lf %lf\n",
-                average[56], stddev[56], minimum[56], maximum[56]);
-            fprintf(fp, "            unpack blocks   : %lf %lf %lf %lf\n",
-                average[57], stddev[57], minimum[57], maximum[57]);
-            fprintf(fp, "            coarsen blocks  : %lf %lf %lf %lf\n",
-                average[58], stddev[58], minimum[58], maximum[58]);
-            fprintf(fp, "          add blocks        : %lf %lf %lf %lf\n",
-                average[59], stddev[59], minimum[59], maximum[59]);
-            fprintf(fp, "            decide and comm : %lf %lf %lf %lf\n",
-                average[60], stddev[60], minimum[60], maximum[60]);
-            fprintf(fp, "            split blocks    : %lf %lf %lf %lf\n",
-                average[61], stddev[61], minimum[61], maximum[61]);
-         }
          fprintf(fp, "        total load balance  : %lf %lf %lf %lf\n",
                 average[62], stddev[62], minimum[62], maximum[62]);
          fprintf(fp, "           sort             : %lf %lf %lf %lf\n",
@@ -846,6 +809,7 @@ void profile(void)
 
          printf("Run on %d ranks arranged in a %d x %d x %d grid\n", num_pes,
                 npx, npy, npz);
+         printf("Threads per rank %d\n", ompt);
          printf("initial blocks per rank %d x %d x %d\n", init_block_x,
                 init_block_y, init_block_z);
          printf("block size %d x %d x %d\n", x_block_size, y_block_size,
@@ -857,12 +821,6 @@ void profile(void)
          if (permute)
             printf("Order of exchanges permuted\n");
          printf("Maximum number of blocks per rank is %d\n", max_num_blocks);
-         if (target_active)
-            printf("Target number of blocks per rank is %d\n", target_active);
-         if (target_max)
-            printf("Target max number of blocks per rank is %d\n", target_max);
-         if (target_min)
-            printf("Target min number of blocks per rank is %d\n", target_min);
          if (code)
             printf("Code set to code %d\n", code);
          printf("Number of levels of refinement is %d\n", num_refine);
@@ -952,10 +910,7 @@ void profile(void)
             printf("\nNumber of timesteps is %d\n", num_tsteps);
          printf("Communicaion/computation stages per timestep is %d\n",
                 stages_per_ts);
-         if (nonblocking)
-            printf("Communication will be performed with nonblocking sends\n");
-         else
-            printf("Communication will be performed with blocking sends\n");
+         printf("Communication will be performed with nonblocking sends\n");
          printf("Will perform checksums every %d stages\n", checksum_freq);
          printf("Will refine every %d timesteps\n", refine_freq);
          if (lb_opt == 0)
@@ -1109,8 +1064,6 @@ void profile(void)
          printf("     total moved load bal   : %lf\n", average[107]*num_pes);
          printf("     total moved redistribut: %lf\n", average[122]*num_pes);
          printf("     total moved coasening  : %lf\n", average[109]*num_pes);
-         if (target_active)
-            printf("     total moved reducing   : %lf\n", average[108]*num_pes);
          printf("                              average    stddev  minimum  maximum\n");
          printf("     Per processor:\n");
          printf("     total blocks split     : %lf %lf %lf %lf\n",
@@ -1125,9 +1078,6 @@ void profile(void)
                 average[122], stddev[122], minimum[122], maximum[122]);
          printf("     Blocks moved coarsening: %lf %lf %lf %lf\n",
                 average[109], stddev[109], minimum[109], maximum[109]);
-         if (target_active)
-            printf("     Blocks moved reducing  : %lf %lf %lf %lf\n",
-                   average[108], stddev[108], minimum[108], maximum[108]);
          printf("     Time:\n");
          printf("        compare objects     : %lf %lf %lf %lf\n",
                 average[43], stddev[43], minimum[43], maximum[43]);
@@ -1163,28 +1113,6 @@ void profile(void)
                 average[126], stddev[126], minimum[126], maximum[126]);
          printf("           unpack blocks    : %lf %lf %lf %lf\n",
                 average[127], stddev[127], minimum[127], maximum[127]);
-         if (target_active) {
-            printf("        total target active : %lf %lf %lf %lf\n",
-                average[52], stddev[52], minimum[52], maximum[52]);
-            printf("          reduce blocks     : %lf %lf %lf %lf\n",
-                average[53], stddev[53], minimum[53], maximum[53]);
-            printf("            decide and comm : %lf %lf %lf %lf\n",
-                average[54], stddev[54], minimum[54], maximum[54]);
-            printf("            pack blocks     : %lf %lf %lf %lf\n",
-                average[55], stddev[55], minimum[55], maximum[55]);
-            printf("            move blocks     : %lf %lf %lf %lf\n",
-                average[56], stddev[56], minimum[56], maximum[56]);
-            printf("            unpack blocks   : %lf %lf %lf %lf\n",
-                average[57], stddev[57], minimum[57], maximum[57]);
-            printf("            coarsen blocks  : %lf %lf %lf %lf\n",
-                average[58], stddev[58], minimum[58], maximum[58]);
-            printf("          add blocks        : %lf %lf %lf %lf\n",
-                average[59], stddev[59], minimum[59], maximum[59]);
-            printf("            decide and comm : %lf %lf %lf %lf\n",
-                average[60], stddev[60], minimum[60], maximum[60]);
-            printf("            split blocks    : %lf %lf %lf %lf\n",
-                average[61], stddev[61], minimum[61], maximum[61]);
-         }
          printf("        total load balance  : %lf %lf %lf %lf\n",
                 average[62], stddev[62], minimum[62], maximum[62]);
          printf("           sort             : %lf %lf %lf %lf\n",
@@ -1209,7 +1137,7 @@ void profile(void)
                 average[67], stddev[67], minimum[67], maximum[67]);
          printf("     Number of plot steps: %d\n", nps);
          printf("\n ================== End report ===================\n");
-printf("Summary: ranks %d ts %d time %lf calc %lf max comm %lf min red %lf refine %lf blocks/ts %lf max_blocks %d\n", num_pes, num_tsteps, average[0], average[38], maximum[37], minimum[39], average[42], ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)), global_max_b);
+printf("Summary: ranks %d threads %d ts %d time %lf calc %lf max comm %lf min red %lf refine %lf blocks/ts %lf max_blocks %d\n", num_pes, ompt, num_tsteps, average[0], average[38], maximum[37], minimum[39], average[42], ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)), global_max_b);
       }
    }
 }
@@ -1251,16 +1179,16 @@ void calculate_results(void)
    results[49] = timer_cb_pa;
    results[50] = timer_cb_mv;
    results[51] = timer_cb_un;
-   results[52] = timer_target_all;
-   results[53] = timer_target_rb;
-   results[54] = timer_target_dc;
-   results[55] = timer_target_pa;
-   results[56] = timer_target_mv;
-   results[57] = timer_target_un;
-   results[58] = timer_target_cb;
-   results[59] = timer_target_ab;
-   results[60] = timer_target_da;
-   results[61] = timer_target_sb;
+   results[52] = 0;
+   results[53] = 0;
+   results[54] = 0;
+   results[55] = 0;
+   results[56] = 0;
+   results[57] = 0;
+   results[58] = 0;
+   results[59] = 0;
+   results[60] = 0;
+   results[61] = 0;
    results[62] = timer_lb_all;
    results[63] = timer_lb_sort;
    results[64] = timer_lb_pa;
@@ -1358,16 +1286,6 @@ void init_profile(void)
    timer_cb_pa = 0.0;
    timer_cb_mv = 0.0;
    timer_cb_un = 0.0;
-   timer_target_all = 0.0;
-   timer_target_rb = 0.0;
-   timer_target_dc = 0.0;
-   timer_target_pa = 0.0;
-   timer_target_mv = 0.0;
-   timer_target_un = 0.0;
-   timer_target_cb = 0.0;
-   timer_target_ab = 0.0;
-   timer_target_da = 0.0;
-   timer_target_sb = 0.0;
    timer_lb_all = 0.0;
    timer_lb_sort = 0.0;
    timer_lb_pa = 0.0;

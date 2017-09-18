@@ -36,9 +36,10 @@
 // Main driver for program.
 void driver(void)
 {
-   int ts, var, start, number, stage, comm_stage, calc_stage, done;
+   int ts, var, start, number, stage, comm_stage, calc_stage, done, in;
    double t1, t2, t3, t4;
    double sum, delta = 1.0, sim_time;
+   block *bp;
 
    init();
    init_profile();
@@ -77,13 +78,19 @@ void driver(void)
             timer_comm_all += t4 - t3;
             for (var = start; var < (start+number); var ++) {
                stencil_driver(var, calc_stage);
+//#pragma omp parallel for private (bp)
+//               for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//                  bp = &blocks[sorted_list[in].n];
+//                  stencil_driver(bp, var, calc_stage);
+//               }
                t3 = timer();
+//if (!my_pe) printf("var %d took %lf\n", var, (t3 - t4));
                timer_calc_all += t3 - t4;
                if (checksum_freq && !(stage%checksum_freq)) {
                   sum = check_sum(var);
                   if (report_diffusion && !my_pe)
-                     printf("%d var %d sum %lf old %lf diff %lf tol %lf\n",
-                            ts, var, sum, grid_sum[var],
+                     printf("%d var %d sum %lf old %lf diff %lf %lf tol %lf\n",
+                            ts, var, sum, grid_sum[var], (sum - grid_sum[var]),
                             (fabs(sum - grid_sum[var])/grid_sum[var]), tol);
                   if (stencil || var == 0)
                      if (fabs(sum - grid_sum[var])/grid_sum[var] > tol) {

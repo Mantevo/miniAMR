@@ -111,18 +111,6 @@ The list of arguments and their defaults is as follows:
       This determines the frequency (in timesteps) between checking if
       refinement is needed.  The default is every 5 timesteps.
 
-   --target_active - target number of blocks per processor
-   --target_max - max number of blocks per processor
-   --target_min - min number of blocks per processor
-      These allow the user to control the number of blocks per processor.
-      If these are zero, then no adjustment is made.  If target_active is
-      greater than zero than the code will adjust the number of blocks to
-      that target after the refinement step.  If target_max is greater than
-      zero then the number of blocks will be reduced if it exceeds this
-      number.  Likewise, if target_min is greater than zero, than the number
-      of blocks will be raised if there is less than that number after the
-      refinement step.  The default for all of these is zero.
-
    --inbalance - percentage inbalance to trigger inbalance
       This parameter allows the user to set a percentage threshold above
       which the load will be balanced amoung the processors.  The value
@@ -168,9 +156,6 @@ The list of arguments and their defaults is as follows:
       If this is set, then the order of the communication directions will
       be permuted through the six options available.  The default is
       to send messages in the x direction first, then y, and then z.
-
-   --blocking_send - (no argument) Use blocking sends in the communication
-      routine instead of the default nonblocking sends.
 
    --code - change the way communication is done
       The default is 0 which communicates only the ghost values that are
@@ -290,7 +275,6 @@ mpirun -np 16 miniAMR.x --num_refine 4 --max_blocks 4000 --init_x 1 --init_y 1 -
    rcb.c           Load balancing routines
    refine.c        Routines to direct refinement step
    stencil.c       Perform stencil calculations
-   target.c        Add/subtract blocks to reach a target number
    util.c          Utility routines for timing and allocation
 
 -- End README file.
