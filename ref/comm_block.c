@@ -44,7 +44,7 @@ void comm_proc(void)
    MPI_Status status;
 
    for (dir = 0; dir < 3; dir++) {
-      type = 10 + dir;
+      type = 60 + dir;
       for (i = 0; i < num_comm_partners[dir]; i++)
          MPI_Irecv(&recv_int[comm_index[dir][i]], comm_num[dir][i],
                    MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,

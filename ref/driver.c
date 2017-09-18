@@ -82,8 +82,8 @@ void driver(void)
                if (checksum_freq && !(stage%checksum_freq)) {
                   sum = check_sum(var);
                   if (report_diffusion && !my_pe)
-                     printf("%d var %d sum %lf old %lf diff %lf tol %lf\n",
-                            ts, var, sum, grid_sum[var],
+                     printf("%d var %d sum %lf old %lf diff %lf %lf tol %lf\n",
+                            ts, var, sum, grid_sum[var], (sum - grid_sum[var]),
                             (fabs(sum - grid_sum[var])/grid_sum[var]), tol);
                   if (stencil || var == 0)
                      if (fabs(sum - grid_sum[var])/grid_sum[var] > tol) {

@@ -63,7 +63,10 @@ void init(void)
 
    /* initialize for communication arrays, which are initialized below */
    zero_comm_list();
+   par_b.num_comm_part = par_b.num_cases = 0;
+   par_p.num_comm_part = par_p.num_cases = 0;
 
+   num_cells = x_block_size*y_block_size*z_block_size;
    x_block_half = x_block_size/2;
    y_block_half = y_block_size/2;
    z_block_half = z_block_size/2;
@@ -206,6 +209,7 @@ void init(void)
                         bp->level = 0;
                         bp->number = n;
                         bp->parent = -1;
+                        bp->parent_node = my_pe;
                         bp->cen[0] = i1*size + size/2;
                         bp->cen[1] = j1*size + size/2;
                         bp->cen[2] = k1*size + size/2;

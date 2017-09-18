@@ -76,6 +76,7 @@ int target_min;
 int num_refine;
 int uniform_refine;
 int x_block_size, y_block_size, z_block_size;
+int num_cells;
 int num_vars;
 int mat;
 int comm_vars;

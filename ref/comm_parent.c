@@ -195,10 +195,10 @@ void comm_parent_proc(void)
       free(par_p1.comm_p);
       free(par_p1.comm_c);
       par_p1.max_cases = par_p.max_cases;
-      par_p1.comm_b = (long long *) ma_malloc(par_p.max_cases*sizeof(long long),
-                                        __FILE__, __LINE__);
-      par_p1.comm_p = (long long *) ma_malloc(par_p.max_cases*sizeof(long long),
-                                        __FILE__, __LINE__);
+      par_p1.comm_b = (num_sz *) ma_malloc(par_p.max_cases*sizeof(num_sz),
+                                           __FILE__, __LINE__);
+      par_p1.comm_p = (num_sz *) ma_malloc(par_p.max_cases*sizeof(num_sz),
+                                           __FILE__, __LINE__);
       par_p1.comm_c = (int *) ma_malloc(par_p.max_cases*sizeof(int),
                                         __FILE__, __LINE__);
    }

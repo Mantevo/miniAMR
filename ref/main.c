@@ -37,7 +37,7 @@
 int main(int argc, char** argv)
 {
    int i, ierr, object_num;
-   int params[36];
+   int params[37];
    double *objs;
 #include "param.h"
 
@@ -198,10 +198,11 @@ int main(int argc, char** argv)
       params[33] = nonblocking;
       params[34] = refine_ghost;
       params[35] = use_time;
+      params[36] = end_time;
 
-      MPI_Bcast(params, 36, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 37, MPI_INT, 0, MPI_COMM_WORLD);
 
-      objs = (double *) ma_malloc((14*num_objects+1)*sizeof(double),
+      objs = (double *) ma_malloc(14*num_objects*sizeof(double),
                                   __FILE__, __LINE__);
       for (i = object_num = 0; object_num < num_objects; object_num++) {
          objs[i++] = (double) objects[object_num].type;
@@ -219,12 +220,11 @@ int main(int argc, char** argv)
          objs[i++] = objects[object_num].inc[1];
          objs[i++] = objects[object_num].inc[2];
       }
-      objs[i] = end_time;
 
-      MPI_Bcast(objs, (14*num_objects+1), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(objs, (14*num_objects), MPI_DOUBLE, 0, MPI_COMM_WORLD);
       free(objs);
    } else {
-      MPI_Bcast(params, 36, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 37, MPI_INT, 0, MPI_COMM_WORLD);
       max_num_blocks = params[ 0];
       target_active = params[ 1];
       num_refine = params[ 2];
@@ -261,13 +261,14 @@ int main(int argc, char** argv)
       nonblocking = params[33];
       refine_ghost = params[34];
       use_time = params[35];
+      end_time = params[36];
 
       objects = (object *) ma_malloc(num_objects*sizeof(object),
                                      __FILE__, __LINE__);
-      objs = (double *) ma_malloc((14*num_objects+1)*sizeof(double),
+      objs = (double *) ma_malloc(14*num_objects*sizeof(double),
                                   __FILE__, __LINE__);
 
-      MPI_Bcast(objs, (14*num_objects+1), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(objs, (14*num_objects), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       for (i = object_num = 0; object_num < num_objects; object_num++) {
          objects[object_num].type = (int) objs[i++];
@@ -285,7 +286,6 @@ int main(int argc, char** argv)
          objects[object_num].inc[1] = objs[i++];
          objects[object_num].inc[2] = objs[i++];
       }
-      end_time = objs[i];
       free(objs);
    }
    for (object_num = 0; object_num < num_objects; object_num++)

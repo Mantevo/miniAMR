@@ -102,48 +102,46 @@ void comm(int start, int num_comm, int stage)
       // blocks to exchange ghost values with other blocks that are on
       // processor.  Also apply boundary conditions for boundary of domain.
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         n = sorted_list[in].n;
-         bp = &blocks[n];
-         if (bp->number >= 0)
-            for (l = dir*2; l < (dir*2 + 2); l++) {
-               if (bp->nei_level[l] == bp->level) {
-                  t2 = timer();
-                  if ((m = bp->nei[l][0][0]) > n) {
-                     on_proc_comm(n, m, l, start, num_comm);
-                     counter_same[dir] += 2;
-                  }
-                  timer_comm_same[dir] += timer() - t2;
-               } else if (bp->nei_level[l] == (bp->level+1)) {
-                  t2 = timer();
+         bp = &blocks[n = sorted_list[in].n];
+         for (l = dir*2; l < (dir*2 + 2); l++) {
+            if (bp->nei_level[l] == bp->level) {
+               t2 = timer();
+               if ((m = bp->nei[l][0][0]) > n) {
+                  on_proc_comm(n, m, l, start, num_comm);
+                  counter_same[dir] += 2;
+               }
+               timer_comm_same[dir] += timer() - t2;
+            } else if (bp->nei_level[l] == (bp->level+1)) {
+               t2 = timer();
+               for (i = 0; i < 2; i++)
+                  for (j = 0; j < 2; j++)
+                     if ((m = bp->nei[l][i][j]) > n) {
+                        on_proc_comm_diff(n, m, l, i, j, start, num_comm);
+                        counter_diff[dir] += 2;
+                     }
+               timer_comm_diff[dir] += timer() - t2;
+            } else if (bp->nei_level[l] == (bp->level-1)) {
+               t2 = timer();
+               if ((m = bp->nei[l][0][0]) > n) {
+                  k = dir*2 + 1 - l%2;
                   for (i = 0; i < 2; i++)
                      for (j = 0; j < 2; j++)
-                        if ((m = bp->nei[l][i][j]) > n) {
-                           on_proc_comm_diff(n, m, l, i, j, start, num_comm);
+                        if (blocks[m].nei[k][i][j] == n) {
+                           on_proc_comm_diff(m, n, k, i, j, start, num_comm);
                            counter_diff[dir] += 2;
                         }
-                  timer_comm_diff[dir] += timer() - t2;
-               } else if (bp->nei_level[l] == (bp->level-1)) {
-                  t2 = timer();
-                  if ((m = bp->nei[l][0][0]) > n) {
-                     k = dir*2 + 1 - l%2;
-                     for (i = 0; i < 2; i++)
-                        for (j = 0; j < 2; j++)
-                           if (blocks[m].nei[k][i][j] == n) {
-                              on_proc_comm_diff(m, n, k, i, j, start, num_comm);
-                              counter_diff[dir] += 2;
-                           }
-                  }
-                  timer_comm_diff[dir] += timer() - t2;
-               } else if (bp->nei_level[l] == -2) {
-                  t2 = timer();
-                  apply_bc(l, bp, start, num_comm);
-                  counter_bc[dir]++;
-                  timer_comm_bc[dir] += timer() - t2;
-               } else {
-                  printf("ERROR: misconnected block\n");
-                  exit(-1);
                }
+               timer_comm_diff[dir] += timer() - t2;
+            } else if (bp->nei_level[l] == -2) {
+               t2 = timer();
+               apply_bc(l, bp, start, num_comm);
+               counter_bc[dir]++;
+               timer_comm_bc[dir] += timer() - t2;
+            } else {
+               printf("ERROR: misconnected block\n");
+               exit(-1);
             }
+         }
       }
 
       for (i = 0; i < num_comm_partners[dir]; i++) {

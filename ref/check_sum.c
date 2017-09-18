@@ -35,7 +35,7 @@
 // Generate check sum for a variable over all active blocks.
 double check_sum(int var)
 {
-   int n, in, i, j, k;
+   int in, i, j, k;
    double sum, gsum, block_sum, t1, t2, t3;
    block *bp;
 
@@ -43,16 +43,13 @@ double check_sum(int var)
 
    sum = 0.0;
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      n = sorted_list[in].n;
-      bp = &blocks[n];
-      if (bp->number >= 0) {
-         block_sum = 0.0;
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  block_sum += bp->array[var][i][j][k];
-         sum += block_sum;
-      }
+      bp = &blocks[sorted_list[in].n];
+      block_sum = 0.0;
+      for (i = 1; i <= x_block_size; i++)
+         for (j = 1; j <= y_block_size; j++)
+            for (k = 1; k <= z_block_size; k++)
+               block_sum += bp->array[var][i][j][k];
+      sum += block_sum;
    }
 
    t2 = timer();

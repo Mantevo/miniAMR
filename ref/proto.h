@@ -36,7 +36,7 @@ int check_input(void);
 void split_blocks(void);
 void consolidate_blocks(void);
 void add_sorted_list(int, num_sz, int);
-void del_sorted_list(num_sz, int);
+void del_sorted_list(num_sz, int, int);
 int find_sorted_list(num_sz, int);
 
 // check_sum.c

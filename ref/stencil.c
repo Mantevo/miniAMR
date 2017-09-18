@@ -38,13 +38,10 @@ void stencil_z(int);
 void stencil_7(int);
 void stencil_27(int);
 void stencil_check(int);
-int num_cells;
 
 // This routine does the stencil calculations.
 void stencil_driver(int var, int cacl_stage)
 {
-   num_cells = x_block_size*y_block_size*z_block_size;
-
    if (stencil)
       stencil_calc(var, stencil);
    else
