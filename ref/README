@@ -7,6 +7,7 @@ Contents of this README file:
 3.      building miniAMR
 4.      running miniAMR
 5.      notes about the code
+6.      reference
 --------------------------------------
 
 --------------------------------------
@@ -293,6 +294,10 @@ mpirun -np 16 miniAMR.x --num_refine 4 --max_blocks 4000 --init_x 1 --init_y 1 -
    target.c        Add/subtract blocks to reach a target number
    util.c          Utility routines for timing and allocation
 
+-------------------
+6. Reference:
+
+Vaughan, Courtenay T., Richard Frederick Barrett, "Enabling Tractable Exploration of the Performance of Adaptive Mesh Refinement," Workshop Paper, Workshop on Representative Applications at IEEE Cluster, September 2015.
 -- End README file.
 
 Courtenay T. Vaughan
