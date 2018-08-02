@@ -735,7 +735,7 @@ void move_blocks(double *tp, double *tm, double *tu)
                   i = pos[mul[dir][1]]%2;
                   j = pos[mul[dir][0]]%2;
                   if (proc == my_pe) {
-                     number = (((pos[2]/2+k1)*p2[bp->level-1]*npy*init_block_y)+
+                     number = (num_sz) (((pos[2]/2+k1)*p2[bp->level-1]*npy*init_block_y)+
                                 (pos[1]/2+j1))*p2[bp->level-1]*npx*init_block_x+
                               pos[0]/2 + i1 + block_start[bp->level-1];
                      n1 = find_sorted_list(number, (bp->level-1));
@@ -752,7 +752,7 @@ void move_blocks(double *tp, double *tm, double *tu)
                if (bp->nei[c][0][0] < 0) {
                   proc = -1 - bp->nei[c][0][0];
                   if (proc == my_pe) {
-                     number = (((pos[2]+k1)*p2[bp->level]*npy*init_block_y) +
+                     number = (num_sz) (((pos[2]+k1)*p2[bp->level]*npy*init_block_y) +
                                 (pos[1]+j1))*p2[bp->level]*npx*init_block_x +
                               pos[0] + i1 + block_start[bp->level];
                      n1 = find_sorted_list(number, bp->level);
@@ -775,7 +775,7 @@ void move_blocks(double *tp, double *tm, double *tu)
                         off[mul[dir][1]] = i;
                         proc = -1 - bp->nei[c][i][j];
                         if (proc == my_pe) {
-                           number = (((2*(pos[2]+k1)-(k1-1)/2+off[2])*
+                           number = (num_sz) (((2*(pos[2]+k1)-(k1-1)/2+off[2])*
                                           p2[bp->level+1]*npy*init_block_y) +
                                       (2*(pos[1]+j1)-(j1-1)/2+off[1]))*
                                           p2[bp->level+1]*npx*init_block_x +
