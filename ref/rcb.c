@@ -602,9 +602,9 @@ void move_dots_back()
 void move_blocks(double *tp, double *tm, double *tu)
 {
    static int mul[3][3] = { {1, 2, 0}, {0, 2, 1}, {0, 1, 2} };
-   int n, n1, nl, p, c, c1, dir, i, j, k, i1, j1, k1, in,
+   int n, n1, p, c, c1, dir, i, j, k, i1, j1, k1, in,
        offset, off[3], f, fcase, proc;
-   num_sz number, pos[3];
+   num_sz number, nl, pos[3];
    block *bp, *bp1;
 
    if (stencil == 7)  // add to face case when diags are needed
