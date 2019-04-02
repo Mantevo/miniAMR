@@ -29,6 +29,8 @@
 #include <math.h>
 
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
 
 #include "block.h"
 #include "comm.h"
@@ -50,33 +52,36 @@ void stencil_driver(int var, int cacl_stage)
 
    if (stencil)
       stencil_calc(var, stencil);
-   else
-      if (!var)
-         stencil_calc(var, 7);
-      else if (var < 4*mat) {
-         switch (cacl_stage%6) {
-         case 0:
-            stencil_0(var);
-            break;
-         case 1:
-            stencil_x(var);
-            break;
-         case 2:
-            stencil_y(var);
-            break;
-         case 3:
-            stencil_z(var);
-            break;
-         case 4:
-            stencil_7(var);
-            break;
-         case 5:
-            stencil_27(var);
-            break;
-         }
-         stencil_check(var);
-      } else
-          stencil_calc(var, 7);
+   else {
+      assert(!"Supporting stencil=7 for now");
+      //FIXME: extend refactoring to other stencils
+      //if (!var)
+      //   stencil_calc(var, 7);
+      //else if (var < 4*mat) {
+      //   switch (cacl_stage%6) {
+      //   case 0:
+      //      stencil_0(var);
+      //      break;
+      //   case 1:
+      //      stencil_x(var);
+      //      break;
+      //   case 2:
+      //      stencil_y(var);
+      //      break;
+      //   case 3:
+      //      stencil_z(var);
+      //      break;
+      //   case 4:
+      //      stencil_7(var);
+      //      break;
+      //   case 5:
+      //      stencil_27(var);
+      //      break;
+      //   }
+      //   stencil_check(var);
+      //} else
+      //    stencil_calc(var, 7);
+   }
 }
 
 void stencil_calc(int var, int stencil_in)
@@ -85,27 +90,25 @@ void stencil_calc(int var, int stencil_in)
    double sb, sm, sf;
    block *bp;
 
-   int tid;
+   typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
 
    if (stencil_in == 7) {
 #pragma omp parallel for default(shared) private(i, j, k, bp)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
+         block3D_t array = (block3D_t)&bp->array[var*block3D_size];
          double work[x_block_size+2][y_block_size+2][z_block_size+2];
+         memcpy(work, array, sizeof(work));
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var][i-1][j  ][k  ] +
-                                   bp->array[var][i  ][j-1][k  ] +
-                                   bp->array[var][i  ][j  ][k-1] +
-                                   bp->array[var][i  ][j  ][k  ] +
-                                   bp->array[var][i  ][j  ][k+1] +
-                                   bp->array[var][i  ][j+1][k  ] +
-                                   bp->array[var][i+1][j  ][k  ])/7.0;
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
+                  array[i][j][k] = (work[i-1][j  ][k  ] +
+                                   work[i  ][j-1][k  ] +
+                                   work[i  ][j  ][k-1] +
+                                   work[i  ][j  ][k  ] +
+                                   work[i  ][j  ][k+1] +
+                                   work[i  ][j+1][k  ] +
+                                   work[i+1][j  ][k  ])/7.0;
       }
 
       total_fp_divs += (double) num_active*num_cells;
@@ -114,43 +117,41 @@ void stencil_calc(int var, int stencil_in)
 #pragma omp parallel for default(shared) private (i, j, k, bp, sb, sm, sf)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
+         block3D_t array = (block3D_t)&bp->array[var*block3D_size];
          double work[x_block_size+2][y_block_size+2][z_block_size+2];
+         memcpy(work, array, sizeof(work));
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++) {
-                  sb = bp->array[var][i-1][j-1][k-1] +
-                       bp->array[var][i-1][j-1][k  ] +
-                       bp->array[var][i-1][j-1][k+1] +
-                       bp->array[var][i-1][j  ][k-1] +
-                       bp->array[var][i-1][j  ][k  ] +
-                       bp->array[var][i-1][j  ][k+1] +
-                       bp->array[var][i-1][j+1][k-1] +
-                       bp->array[var][i-1][j+1][k  ] +
-                       bp->array[var][i-1][j+1][k+1];
-                  sm = bp->array[var][i  ][j-1][k-1] +
-                       bp->array[var][i  ][j-1][k  ] +
-                       bp->array[var][i  ][j-1][k+1] +
-                       bp->array[var][i  ][j  ][k-1] +
-                       bp->array[var][i  ][j  ][k  ] +
-                       bp->array[var][i  ][j  ][k+1] +
-                       bp->array[var][i  ][j+1][k-1] +
-                       bp->array[var][i  ][j+1][k  ] +
-                       bp->array[var][i  ][j+1][k+1];
-                  sf = bp->array[var][i+1][j-1][k-1] +
-                       bp->array[var][i+1][j-1][k  ] +
-                       bp->array[var][i+1][j-1][k+1] +
-                       bp->array[var][i+1][j  ][k-1] +
-                       bp->array[var][i+1][j  ][k  ] +
-                       bp->array[var][i+1][j  ][k+1] +
-                       bp->array[var][i+1][j+1][k-1] +
-                       bp->array[var][i+1][j+1][k  ] +
-                       bp->array[var][i+1][j+1][k+1];
-                  work[i][j][k] = (sb + sm + sf)/27.0;
+                  sb = work[i-1][j-1][k-1] +
+                       work[i-1][j-1][k  ] +
+                       work[i-1][j-1][k+1] +
+                       work[i-1][j  ][k-1] +
+                       work[i-1][j  ][k  ] +
+                       work[i-1][j  ][k+1] +
+                       work[i-1][j+1][k-1] +
+                       work[i-1][j+1][k  ] +
+                       work[i-1][j+1][k+1];
+                  sm = work[i  ][j-1][k-1] +
+                       work[i  ][j-1][k  ] +
+                       work[i  ][j-1][k+1] +
+                       work[i  ][j  ][k-1] +
+                       work[i  ][j  ][k  ] +
+                       work[i  ][j  ][k+1] +
+                       work[i  ][j+1][k-1] +
+                       work[i  ][j+1][k  ] +
+                       work[i  ][j+1][k+1];
+                  sf = work[i+1][j-1][k-1] +
+                       work[i+1][j-1][k  ] +
+                       work[i+1][j-1][k+1] +
+                       work[i+1][j  ][k-1] +
+                       work[i+1][j  ][k  ] +
+                       work[i+1][j  ][k+1] +
+                       work[i+1][j+1][k-1] +
+                       work[i+1][j+1][k  ] +
+                       work[i+1][j+1][k+1];
+                  array[i][j][k] = (sb + sm + sf)/27.0;
                }
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
       }
 
       total_fp_divs += (double) num_active*num_cells;
@@ -158,937 +159,937 @@ void stencil_calc(int var, int stencil_in)
    }
 }
 
-void stencil_0(int var)
-{
-   int in, i, j, k, v;
-   block *bp;
-
-   if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  for (v = mat; v < 2*mat; v++)
-                     bp->array[var][i][j][k] += bp->array[v][i][j][k]*
-                                                bp->array[0][i][j][k];
-      }
-}
-
-      total_fp_adds += (double) mat*num_active*num_cells;
-      total_fp_muls += (double) mat*num_active*num_cells;
-    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
-                                             (bp->array[0][i][j][k] +
-                                              bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k]);
-      }
-}
-
-      total_fp_adds += (double) 3*num_active*num_cells;
-      total_fp_muls += (double) 2*num_active*num_cells;
-   } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = bp->array[var][i][j][k]*
-                                            (bp->array[0][i][j][k] +
-                                             bp->array[var][i][j][k] +
-                                             beta*bp->array[var+mat][i][j][k] +
-                                     (1.0-beta)*bp->array[var+2*mat][i][j][k])/
-                                            bp->array[1][i][j][k];
-      }
-}
-
-      total_fp_adds += (double) 3*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] += bp->array[var-mat][i][j][k]*
-                                             (beta*bp->array[0][i][j][k] +
-                                     alpha[var-2*mat]*bp->array[var][i][j][k] +
-                                       (1.0-beta)*bp->array[var+mat][i][j][k])/
-                                             bp->array[1][i][j][k];
-         }
-}
-
-      total_fp_adds += (double) 4*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] += bp->array[var-2*mat][i][j][k]*
-                                             (beta*bp->array[0][i][j][k] +
-                                     alpha[var-3*mat]*bp->array[var][i][j][k] +
-                           (1.0-alpha[var-3*mat])*bp->array[var-mat][i][j][k] +
-                                     (1.0-beta)*bp->array[var-2*mat][i][j][k])/
-                                             (bp->array[1][i][j][k]*
-                                              bp->array[1][i][j][k]);
-         }
-}
-      total_fp_adds += (double) 6*num_active*num_cells;
-      total_fp_muls += (double) 6*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   }
-}
-
-void stencil_x(int var)
-{
-   int in, i, j, k, v;
-   double tmp1, tmp2;
-   block *bp;
-
-   if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++) {
-                  for (v = 2; v < mat+2; v++)
-                     bp->array[1][i][j][k] += bp->array[v][i][j][k]*
-                                              bp->array[0][i][j][k];
-                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
-               }
-      }
-}
-      total_fp_adds += (double) (mat+1)*num_active*num_cells;
-      total_fp_muls += (double) mat*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
-                                             (bp->array[0][i][j][k] +
-                                              bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k])/
-                                          (alpha[var] + bp->array[1][i][j][k]);
-      }
-}
-      total_fp_adds += (double) 4*num_active*num_cells;
-      total_fp_muls += (double) 2*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var][i][j][k] -
-                                   bp->array[var][i-1][j][k])) >
-                      (tmp2 = fabs(bp->array[var][i][j][k] -
-                                   bp->array[var][i+1][j][k])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-mat] +
-                                               bp->array[var][i-1][j][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i+1][j][k] +
-                                               bp->array[0][i][j][k] +
-                                               bp->array[1][i][j][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-mat] +
-                                               bp->array[var][i-1][j][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i+1][j][k] +
-                                               bp->array[0][i][j][k] +
-                                               bp->array[1][i][j][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var-mat][i][j][k] -
-                                   bp->array[var-mat][i-1][j][k])) >
-                      (tmp2 = fabs(bp->array[var-mat][i][j][k] -
-                                   bp->array[var-mat][i+1][j][k])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-2*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var+mat][i][j][k] +
-                                               bp->array[var][i-1][j][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i+1][j][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-2*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var+mat][i][j][k] +
-                                               bp->array[var][i-1][j][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i+1][j][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var-2*mat][i][j][k] -
-                                   bp->array[var-2*mat][i-1][j][k])) >
-                      (tmp2 = fabs(bp->array[var-2*mat][i][j][k] -
-                                   bp->array[var-2*mat][i+1][j][k])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-3*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var-2*mat][i][j][k] +
-                                               bp->array[var][i-1][j][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i+1][j][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-3*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var-2*mat][i][j][k] +
-                                               bp->array[var][i-1][j][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i+1][j][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   }
-}
-
-void stencil_y(int var)
-{
-   int in, i, j, k, v;
-   double tmp1, tmp2;
-   block *bp;
-
-   if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-#pragma omp for
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++) {
-                  for (v = 2; v < mat+2; v++)
-                     bp->array[1][i][j][k] += bp->array[v][i][j][k]*
-                                              bp->array[0][i][j][k];
-                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
-               }
-      }
-}
-      total_fp_adds += (double) (mat+1)*num_active*num_cells;
-      total_fp_muls += (double) mat*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
-                                             (bp->array[0][i][j][k] +
-                                              bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k])/
-                                          (alpha[var] + bp->array[1][i][j][k]);
-      }
-}
-      total_fp_adds += (double) 4*num_active*num_cells;
-      total_fp_muls += (double) 2*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var][i][j][k] -
-                                   bp->array[var][i][j-1][k])) >
-                      (tmp2 = fabs(bp->array[var][i][j][k] -
-                                   bp->array[var][i][j+1][k])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-mat] +
-                                               bp->array[var][i][j-1][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j+1][k] +
-                                               bp->array[0][i][j][k] +
-                                               bp->array[1][i][j][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-mat] +
-                                               bp->array[var][i][j-1][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j+1][k] +
-                                               bp->array[0][i][j][k] +
-                                               bp->array[1][i][j][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var-mat][i][j][k] -
-                                   bp->array[var-mat][i][j-1][k])) >
-                      (tmp2 = fabs(bp->array[var-mat][i][j][k] -
-                                   bp->array[var-mat][i][j+1][k])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-2*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var+mat][i][j][k] +
-                                               bp->array[var][i][j-1][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j+1][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-2*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var+mat][i][j][k] +
-                                               bp->array[var][i][j-1][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j+1][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var-2*mat][i][j][k] -
-                                   bp->array[var-2*mat][i][j-1][k])) >
-                      (tmp2 = fabs(bp->array[var-2*mat][i][j][k] -
-                                   bp->array[var-2*mat][i][j+1][k])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-3*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var-2*mat][i][j][k] +
-                                               bp->array[var][i][j-1][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j+1][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-3*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var-2*mat][i][j][k] +
-                                               bp->array[var][i][j-1][k] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j+1][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   }
-}
-
-void stencil_z(int var)
-{
-   int in, i, j, k, v;
-   double tmp1, tmp2;
-   block *bp;
-
-
-   if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++) {
-                  for (v = 2; v < mat+2; v++)
-                     bp->array[1][i][j][k] += bp->array[v][i][j][k]*
-                                              bp->array[0][i][j][k];
-                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
-               }
-      }
-}
-
-      total_fp_adds += (double) (mat+1)*num_active*num_cells;
-      total_fp_muls += (double) mat*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
-                                             (bp->array[0][i][j][k] +
-                                              bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k])/
-                                          (alpha[var] + bp->array[1][i][j][k]);
-      }
-}
-      total_fp_adds += (double) 4*num_active*num_cells;
-      total_fp_muls += (double) 2*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var][i][j][k] -
-                                   bp->array[var][i][j][k-1])) >
-                      (tmp2 = fabs(bp->array[var][i][j][k] -
-                                   bp->array[var][i][j][k+1])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-mat] +
-                                               bp->array[var][i][j][k-1] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j][k+1] +
-                                               bp->array[0][i][j][k] +
-                                               bp->array[1][i][j][k]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-mat] +
-                                               bp->array[var][i][j][k-1] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j][k+1] +
-                                               bp->array[0][i][j][k] +
-                                               bp->array[1][i][j][k]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var-mat][i][j][k] -
-                                   bp->array[var-mat][i][j][k-1])) >
-                      (tmp2 = fabs(bp->array[var-mat][i][j][k] -
-                                   bp->array[var-mat][i][j][k+1])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-2*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var+mat][i][j][k] +
-                                               bp->array[var][i][j][k-1] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j][k+1]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-2*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var+mat][i][j][k] +
-                                               bp->array[var][i][j][k-1] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j][k+1]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  if ((tmp1 = fabs(bp->array[var-2*mat][i][j][k] -
-                                   bp->array[var-2*mat][i][j][k-1])) >
-                      (tmp2 = fabs(bp->array[var-2*mat][i][j][k] -
-                                   bp->array[var-2*mat][i][j][k+1])))
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
-                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-3*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var-2*mat][i][j][k] +
-                                               bp->array[var][i][j][k-1] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j][k+1]);
-                  else
-                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
-                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
-                                                       bp->array[1][i][j][k]) +
-                                               tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-3*mat] +
-                                               bp->array[var-mat][i][j][k] +
-                                               bp->array[var-2*mat][i][j][k] +
-                                               bp->array[var][i][j][k-1] +
-                                               bp->array[var][i][j][k] +
-                                               bp->array[var][i][j][k+1]);
-      }
-}
-      total_fp_adds += (double) 12*num_active*num_cells;
-      total_fp_muls += (double) 3*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   }
-}
-
-void stencil_7(int var)
-{
-   int in, i, j, k, v;
-   double work[x_block_size+2][y_block_size+2][z_block_size+2];
-   block *bp;
-
-   if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
-                                   bp->array[var+  mat][i-1][j  ][k  ] +
-                                   bp->array[var      ][i  ][j-1][k  ]*
-                                   bp->array[var+2*mat][i  ][j-1][k  ] +
-                                   bp->array[var      ][i  ][j  ][k-1]*
-                                   bp->array[var+3*mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ]*
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var      ][i  ][j  ][k+1]*
-                                   bp->array[var+3*mat][i  ][j  ][k+1] +
-                                   bp->array[var      ][i  ][j+1][k  ]*
-                                   bp->array[var+2*mat][i  ][j+1][k  ] +
-                                   bp->array[var      ][i+1][j  ][k  ]*
-                                   bp->array[var+  mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-      total_fp_adds += (double) 7*num_active*num_cells;
-      total_fp_muls += (double) 8*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
-                                   bp->array[var+  mat][i-1][j  ][k  ] +
-                                   bp->array[var      ][i  ][j-1][k  ]*
-                                   bp->array[var+2*mat][i  ][j-1][k  ] +
-                                   bp->array[var      ][i  ][j  ][k-1]*
-                                   bp->array[var-  mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ]*
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var      ][i  ][j  ][k+1]*
-                                   bp->array[var-  mat][i  ][j  ][k+1] +
-                                   bp->array[var      ][i  ][j+1][k  ]*
-                                   bp->array[var+2*mat][i  ][j+1][k  ] +
-                                   bp->array[var      ][i+1][j  ][k  ]*
-                                   bp->array[var+  mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-      total_fp_adds += (double) 7*num_active*num_cells;
-      total_fp_muls += (double) 8*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
-                                   bp->array[var+  mat][i-1][j  ][k  ] +
-                                   bp->array[var      ][i  ][j-1][k  ]*
-                                   bp->array[var-2*mat][i  ][j-1][k  ] +
-                                   bp->array[var      ][i  ][j  ][k-1]*
-                                   bp->array[var-  mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ]*
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var      ][i  ][j  ][k+1]*
-                                   bp->array[var-  mat][i  ][j  ][k+1] +
-                                   bp->array[var      ][i  ][j+1][k  ]*
-                                   bp->array[var-2*mat][i  ][j+1][k  ] +
-                                   bp->array[var      ][i+1][j  ][k  ]*
-                                   bp->array[var+  mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-      total_fp_adds += (double) 7*num_active*num_cells;
-      total_fp_muls += (double) 8*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
-                                   bp->array[var-3*mat][i-1][j  ][k  ] +
-                                   bp->array[var      ][i  ][j-1][k  ]*
-                                   bp->array[var-2*mat][i  ][j-1][k  ] +
-                                   bp->array[var      ][i  ][j  ][k-1]*
-                                   bp->array[var-  mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ]*
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var      ][i  ][j  ][k+1]*
-                                   bp->array[var-  mat][i  ][j  ][k+1] +
-                                   bp->array[var      ][i  ][j+1][k  ]*
-                                   bp->array[var-2*mat][i  ][j+1][k  ] +
-                                   bp->array[var      ][i+1][j  ][k  ]*
-                                   bp->array[var-3*mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-      total_fp_adds += (double) 7*num_active*num_cells;
-      total_fp_muls += (double) 8*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   }
-}
-
-void stencil_27(int var)
-{
-   int in, i, j, k, v;
-   double work[x_block_size+2][y_block_size+2][z_block_size+2];
-   block *bp;
-
-   if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-#pragma omp for
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var+3*mat][i-1][j-1][k-1] +
-                                   bp->array[var+2*mat][i-1][j-1][k  ] +
-                                   bp->array[var+3*mat][i-1][j-1][k+1] +
-                                   bp->array[var+2*mat][i-1][j  ][k-1] +
-                                   bp->array[var+  mat][i-1][j  ][k  ] +
-                                   bp->array[var+2*mat][i-1][j  ][k+1] +
-                                   bp->array[var+3*mat][i-1][j+1][k-1] +
-                                   bp->array[var+2*mat][i-1][j+1][k  ] +
-                                   bp->array[var+3*mat][i-1][j+1][k+1] +
-                                   bp->array[var+2*mat][i  ][j-1][k-1] +
-                                   bp->array[var+  mat][i  ][j-1][k  ] +
-                                   bp->array[var+2*mat][i  ][j-1][k+1] +
-                                   bp->array[var+  mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var+  mat][i  ][j  ][k+1] +
-                                   bp->array[var+2*mat][i  ][j+1][k-1] +
-                                   bp->array[var+  mat][i  ][j+1][k  ] +
-                                   bp->array[var+2*mat][i  ][j+1][k+1] +
-                                   bp->array[var+3*mat][i+1][j-1][k-1] +
-                                   bp->array[var+2*mat][i+1][j-1][k  ] +
-                                   bp->array[var+3*mat][i+1][j-1][k+1] +
-                                   bp->array[var+2*mat][i+1][j  ][k-1] +
-                                   bp->array[var+  mat][i+1][j  ][k  ] +
-                                   bp->array[var+2*mat][i+1][j  ][k+1] +
-                                   bp->array[var+3*mat][i+1][j+1][k-1] +
-                                   bp->array[var+2*mat][i+1][j+1][k  ] +
-                                   bp->array[var+3*mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-      total_fp_adds += (double) 27*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var-  mat][i-1][j-1][k-1] +
-                                   bp->array[var+2*mat][i-1][j-1][k  ] +
-                                   bp->array[var-  mat][i-1][j-1][k+1] +
-                                   bp->array[var+2*mat][i-1][j  ][k-1] +
-                                   bp->array[var+  mat][i-1][j  ][k  ] +
-                                   bp->array[var+2*mat][i-1][j  ][k+1] +
-                                   bp->array[var-  mat][i-1][j+1][k-1] +
-                                   bp->array[var+2*mat][i-1][j+1][k  ] +
-                                   bp->array[var-  mat][i-1][j+1][k+1] +
-                                   bp->array[var+2*mat][i  ][j-1][k-1] +
-                                   bp->array[var+  mat][i  ][j-1][k  ] +
-                                   bp->array[var+2*mat][i  ][j-1][k+1] +
-                                   bp->array[var+  mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var+  mat][i  ][j  ][k+1] +
-                                   bp->array[var+2*mat][i  ][j+1][k-1] +
-                                   bp->array[var+  mat][i  ][j+1][k  ] +
-                                   bp->array[var+2*mat][i  ][j+1][k+1] +
-                                   bp->array[var-  mat][i+1][j-1][k-1] +
-                                   bp->array[var+2*mat][i+1][j-1][k  ] +
-                                   bp->array[var-  mat][i+1][j-1][k+1] +
-                                   bp->array[var+2*mat][i+1][j  ][k-1] +
-                                   bp->array[var+  mat][i+1][j  ][k  ] +
-                                   bp->array[var+2*mat][i+1][j  ][k+1] +
-                                   bp->array[var-  mat][i+1][j+1][k-1] +
-                                   bp->array[var+2*mat][i+1][j+1][k  ] +
-                                   bp->array[var-  mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-
-      total_fp_adds += (double) 27*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var-  mat][i-1][j-1][k-1] +
-                                   bp->array[var-2*mat][i-1][j-1][k  ] +
-                                   bp->array[var-  mat][i-1][j-1][k+1] +
-                                   bp->array[var-2*mat][i-1][j  ][k-1] +
-                                   bp->array[var+  mat][i-1][j  ][k  ] +
-                                   bp->array[var-2*mat][i-1][j  ][k+1] +
-                                   bp->array[var-  mat][i-1][j+1][k-1] +
-                                   bp->array[var-2*mat][i-1][j+1][k  ] +
-                                   bp->array[var-  mat][i-1][j+1][k+1] +
-                                   bp->array[var-2*mat][i  ][j-1][k-1] +
-                                   bp->array[var+  mat][i  ][j-1][k  ] +
-                                   bp->array[var-2*mat][i  ][j-1][k+1] +
-                                   bp->array[var+  mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var+  mat][i  ][j  ][k+1] +
-                                   bp->array[var-2*mat][i  ][j+1][k-1] +
-                                   bp->array[var+  mat][i  ][j+1][k  ] +
-                                   bp->array[var-2*mat][i  ][j+1][k+1] +
-                                   bp->array[var-  mat][i+1][j-1][k-1] +
-                                   bp->array[var-2*mat][i+1][j-1][k  ] +
-                                   bp->array[var-  mat][i+1][j-1][k+1] +
-                                   bp->array[var-2*mat][i+1][j  ][k-1] +
-                                   bp->array[var+  mat][i+1][j  ][k  ] +
-                                   bp->array[var-2*mat][i+1][j  ][k+1] +
-                                   bp->array[var-  mat][i+1][j+1][k-1] +
-                                   bp->array[var-2*mat][i+1][j+1][k  ] +
-                                   bp->array[var-  mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-      total_fp_adds += (double) 27*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  work[i][j][k] = (bp->array[var-  mat][i-1][j-1][k-1] +
-                                   bp->array[var-2*mat][i-1][j-1][k  ] +
-                                   bp->array[var-  mat][i-1][j-1][k+1] +
-                                   bp->array[var-2*mat][i-1][j  ][k-1] +
-                                   bp->array[var-3*mat][i-1][j  ][k  ] +
-                                   bp->array[var-2*mat][i-1][j  ][k+1] +
-                                   bp->array[var-  mat][i-1][j+1][k-1] +
-                                   bp->array[var-2*mat][i-1][j+1][k  ] +
-                                   bp->array[var-  mat][i-1][j+1][k+1] +
-                                   bp->array[var-2*mat][i  ][j-1][k-1] +
-                                   bp->array[var-3*mat][i  ][j-1][k  ] +
-                                   bp->array[var-2*mat][i  ][j-1][k+1] +
-                                   bp->array[var-3*mat][i  ][j  ][k-1] +
-                                   bp->array[var      ][i  ][j  ][k  ] +
-                                   bp->array[var-3*mat][i  ][j  ][k+1] +
-                                   bp->array[var-2*mat][i  ][j+1][k-1] +
-                                   bp->array[var-3*mat][i  ][j+1][k  ] +
-                                   bp->array[var-2*mat][i  ][j+1][k+1] +
-                                   bp->array[var-  mat][i+1][j-1][k-1] +
-                                   bp->array[var-2*mat][i+1][j-1][k  ] +
-                                   bp->array[var-  mat][i+1][j-1][k+1] +
-                                   bp->array[var-2*mat][i+1][j  ][k-1] +
-                                   bp->array[var-3*mat][i+1][j  ][k  ] +
-                                   bp->array[var-2*mat][i+1][j  ][k+1] +
-                                   bp->array[var-  mat][i+1][j+1][k-1] +
-                                   bp->array[var-2*mat][i+1][j+1][k  ] +
-                                   bp->array[var-  mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
-         for (i = 1; i <= x_block_size; i++)
-            for (j = 1; j <= y_block_size; j++)
-               for (k = 1; k <= z_block_size; k++)
-                  bp->array[var][i][j][k] = work[i][j][k];
-      }
-}
-
-      total_fp_adds += (double) 27*num_active*num_cells;
-      total_fp_divs += (double) num_active*num_cells;
-   }
-}
-
-void stencil_check(int var)
-{
-   int in, i, j, k, v;
-   double work[x_block_size+2][y_block_size+2][z_block_size+2];
-   block *bp;
-
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
-   for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      bp = &blocks[sorted_list[in].n];
-      for (i = 1; i <= x_block_size; i++)
-         for (j = 1; j <= y_block_size; j++)
-            for (k = 1; k <= z_block_size; k++) {
-               bp->array[var][i][j][k] = fabs(bp->array[var][i][j][k]);
-               if (bp->array[var][i][j][k] >= 1.0) {
-                  bp->array[var][i][j][k] /= (beta + alpha[0] +
-                                              bp->array[var][i][j][k]);
-                  total_fp_divs += (double) 1;
-                  total_fp_adds += (double) 2;
-               }
-               else if (bp->array[var][i][j][k] < 0.1) {
-                  bp->array[var][i][j][k] *= 10.0 - beta;
-                  total_fp_muls += (double) 1;
-                  total_fp_adds += (double) 1;
-               }
-            }
-   }
-}
-}
+//void stencil_0(int var)
+//{
+//   int in, i, j, k, v;
+//   block *bp;
+//
+//   if (var == 1) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  for (v = mat; v < 2*mat; v++)
+//                     bp->array[var][i][j][k] += bp->array[v][i][j][k]*
+//                                                bp->array[0][i][j][k];
+//      }
+//}
+//
+//      total_fp_adds += (double) mat*num_active*num_cells;
+//      total_fp_muls += (double) mat*num_active*num_cells;
+//    } else if (var < mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
+//                                             (bp->array[0][i][j][k] +
+//                                              bp->array[1][i][j][k] -
+//                                              beta*bp->array[var][i][j][k]);
+//      }
+//}
+//
+//      total_fp_adds += (double) 3*num_active*num_cells;
+//      total_fp_muls += (double) 2*num_active*num_cells;
+//   } else if (var < 2*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = bp->array[var][i][j][k]*
+//                                            (bp->array[0][i][j][k] +
+//                                             bp->array[var][i][j][k] +
+//                                             beta*bp->array[var+mat][i][j][k] +
+//                                     (1.0-beta)*bp->array[var+2*mat][i][j][k])/
+//                                            bp->array[1][i][j][k];
+//      }
+//}
+//
+//      total_fp_adds += (double) 3*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 3*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] += bp->array[var-mat][i][j][k]*
+//                                             (beta*bp->array[0][i][j][k] +
+//                                     alpha[var-2*mat]*bp->array[var][i][j][k] +
+//                                       (1.0-beta)*bp->array[var+mat][i][j][k])/
+//                                             bp->array[1][i][j][k];
+//         }
+//}
+//
+//      total_fp_adds += (double) 4*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] += bp->array[var-2*mat][i][j][k]*
+//                                             (beta*bp->array[0][i][j][k] +
+//                                     alpha[var-3*mat]*bp->array[var][i][j][k] +
+//                           (1.0-alpha[var-3*mat])*bp->array[var-mat][i][j][k] +
+//                                     (1.0-beta)*bp->array[var-2*mat][i][j][k])/
+//                                             (bp->array[1][i][j][k]*
+//                                              bp->array[1][i][j][k]);
+//         }
+//}
+//      total_fp_adds += (double) 6*num_active*num_cells;
+//      total_fp_muls += (double) 6*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   }
+//}
+//
+//void stencil_x(int var)
+//{
+//   int in, i, j, k, v;
+//   double tmp1, tmp2;
+//   block *bp;
+//
+//   if (var == 1) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++) {
+//                  for (v = 2; v < mat+2; v++)
+//                     bp->array[1][i][j][k] += bp->array[v][i][j][k]*
+//                                              bp->array[0][i][j][k];
+//                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
+//               }
+//      }
+//}
+//      total_fp_adds += (double) (mat+1)*num_active*num_cells;
+//      total_fp_muls += (double) mat*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
+//                                             (bp->array[0][i][j][k] +
+//                                              bp->array[1][i][j][k] -
+//                                              beta*bp->array[var][i][j][k])/
+//                                          (alpha[var] + bp->array[1][i][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 4*num_active*num_cells;
+//      total_fp_muls += (double) 2*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 2*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var][i][j][k] -
+//                                   bp->array[var][i-1][j][k])) >
+//                      (tmp2 = fabs(bp->array[var][i][j][k] -
+//                                   bp->array[var][i+1][j][k])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i+1][j][k])/
+//                                              (beta + alpha[var-mat] +
+//                                               bp->array[var][i-1][j][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i+1][j][k] +
+//                                               bp->array[0][i][j][k] +
+//                                               bp->array[1][i][j][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i+1][j][k])/
+//                                              (beta + alpha[var-mat] +
+//                                               bp->array[var][i-1][j][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i+1][j][k] +
+//                                               bp->array[0][i][j][k] +
+//                                               bp->array[1][i][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 3*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var-mat][i][j][k] -
+//                                   bp->array[var-mat][i-1][j][k])) >
+//                      (tmp2 = fabs(bp->array[var-mat][i][j][k] -
+//                                   bp->array[var-mat][i+1][j][k])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i+1][j][k])/
+//                                              (beta + alpha[var-2*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var+mat][i][j][k] +
+//                                               bp->array[var][i-1][j][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i+1][j][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i+1][j][k])/
+//                                              (beta + alpha[var-2*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var+mat][i][j][k] +
+//                                               bp->array[var][i-1][j][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i+1][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var-2*mat][i][j][k] -
+//                                   bp->array[var-2*mat][i-1][j][k])) >
+//                      (tmp2 = fabs(bp->array[var-2*mat][i][j][k] -
+//                                   bp->array[var-2*mat][i+1][j][k])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i+1][j][k])/
+//                                              (beta + alpha[var-3*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var-2*mat][i][j][k] +
+//                                               bp->array[var][i-1][j][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i+1][j][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i-1][j][k] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i+1][j][k])/
+//                                              (beta + alpha[var-3*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var-2*mat][i][j][k] +
+//                                               bp->array[var][i-1][j][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i+1][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   }
+//}
+//
+//void stencil_y(int var)
+//{
+//   int in, i, j, k, v;
+//   double tmp1, tmp2;
+//   block *bp;
+//
+//   if (var == 1) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//#pragma omp for
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++) {
+//                  for (v = 2; v < mat+2; v++)
+//                     bp->array[1][i][j][k] += bp->array[v][i][j][k]*
+//                                              bp->array[0][i][j][k];
+//                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
+//               }
+//      }
+//}
+//      total_fp_adds += (double) (mat+1)*num_active*num_cells;
+//      total_fp_muls += (double) mat*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
+//                                             (bp->array[0][i][j][k] +
+//                                              bp->array[1][i][j][k] -
+//                                              beta*bp->array[var][i][j][k])/
+//                                          (alpha[var] + bp->array[1][i][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 4*num_active*num_cells;
+//      total_fp_muls += (double) 2*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 2*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var][i][j][k] -
+//                                   bp->array[var][i][j-1][k])) >
+//                      (tmp2 = fabs(bp->array[var][i][j][k] -
+//                                   bp->array[var][i][j+1][k])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j+1][k])/
+//                                              (beta + alpha[var-mat] +
+//                                               bp->array[var][i][j-1][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j+1][k] +
+//                                               bp->array[0][i][j][k] +
+//                                               bp->array[1][i][j][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j+1][k])/
+//                                              (beta + alpha[var-mat] +
+//                                               bp->array[var][i][j-1][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j+1][k] +
+//                                               bp->array[0][i][j][k] +
+//                                               bp->array[1][i][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 3*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var-mat][i][j][k] -
+//                                   bp->array[var-mat][i][j-1][k])) >
+//                      (tmp2 = fabs(bp->array[var-mat][i][j][k] -
+//                                   bp->array[var-mat][i][j+1][k])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j+1][k])/
+//                                              (beta + alpha[var-2*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var+mat][i][j][k] +
+//                                               bp->array[var][i][j-1][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j+1][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j+1][k])/
+//                                              (beta + alpha[var-2*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var+mat][i][j][k] +
+//                                               bp->array[var][i][j-1][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j+1][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var-2*mat][i][j][k] -
+//                                   bp->array[var-2*mat][i][j-1][k])) >
+//                      (tmp2 = fabs(bp->array[var-2*mat][i][j][k] -
+//                                   bp->array[var-2*mat][i][j+1][k])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j+1][k])/
+//                                              (beta + alpha[var-3*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var-2*mat][i][j][k] +
+//                                               bp->array[var][i][j-1][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j+1][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j-1][k] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j+1][k])/
+//                                              (beta + alpha[var-3*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var-2*mat][i][j][k] +
+//                                               bp->array[var][i][j-1][k] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j+1][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   }
+//}
+//
+//void stencil_z(int var)
+//{
+//   int in, i, j, k, v;
+//   double tmp1, tmp2;
+//   block *bp;
+//
+//
+//   if (var == 1) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++) {
+//                  for (v = 2; v < mat+2; v++)
+//                     bp->array[1][i][j][k] += bp->array[v][i][j][k]*
+//                                              bp->array[0][i][j][k];
+//                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
+//               }
+//      }
+//}
+//
+//      total_fp_adds += (double) (mat+1)*num_active*num_cells;
+//      total_fp_muls += (double) mat*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] += bp->array[var][i][j][k]*
+//                                             (bp->array[0][i][j][k] +
+//                                              bp->array[1][i][j][k] -
+//                                              beta*bp->array[var][i][j][k])/
+//                                          (alpha[var] + bp->array[1][i][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 4*num_active*num_cells;
+//      total_fp_muls += (double) 2*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 2*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var][i][j][k] -
+//                                   bp->array[var][i][j][k-1])) >
+//                      (tmp2 = fabs(bp->array[var][i][j][k] -
+//                                   bp->array[var][i][j][k+1])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j][k+1])/
+//                                              (beta + alpha[var-mat] +
+//                                               bp->array[var][i][j][k-1] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j][k+1] +
+//                                               bp->array[0][i][j][k] +
+//                                               bp->array[1][i][j][k]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j][k+1])/
+//                                              (beta + alpha[var-mat] +
+//                                               bp->array[var][i][j][k-1] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j][k+1] +
+//                                               bp->array[0][i][j][k] +
+//                                               bp->array[1][i][j][k]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 3*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var-mat][i][j][k] -
+//                                   bp->array[var-mat][i][j][k-1])) >
+//                      (tmp2 = fabs(bp->array[var-mat][i][j][k] -
+//                                   bp->array[var-mat][i][j][k+1])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j][k+1])/
+//                                              (beta + alpha[var-2*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var+mat][i][j][k] +
+//                                               bp->array[var][i][j][k-1] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j][k+1]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j][k+1])/
+//                                              (beta + alpha[var-2*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var+mat][i][j][k] +
+//                                               bp->array[var][i][j][k-1] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j][k+1]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  if ((tmp1 = fabs(bp->array[var-2*mat][i][j][k] -
+//                                   bp->array[var-2*mat][i][j][k-1])) >
+//                      (tmp2 = fabs(bp->array[var-2*mat][i][j][k] -
+//                                   bp->array[var-2*mat][i][j][k+1])))
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
+//                                         (tmp1-tmp2)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j][k+1])/
+//                                              (beta + alpha[var-3*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var-2*mat][i][j][k] +
+//                                               bp->array[var][i][j][k-1] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j][k+1]);
+//                  else
+//                    bp->array[var][i][j][k] = (tmp1*bp->array[var][i][j][k-1] +
+//                                         (tmp2-tmp1)*(bp->array[var][i][j][k] +
+//                                                       bp->array[1][i][j][k]) +
+//                                               tmp2*bp->array[var][i][j][k+1])/
+//                                              (beta + alpha[var-3*mat] +
+//                                               bp->array[var-mat][i][j][k] +
+//                                               bp->array[var-2*mat][i][j][k] +
+//                                               bp->array[var][i][j][k-1] +
+//                                               bp->array[var][i][j][k] +
+//                                               bp->array[var][i][j][k+1]);
+//      }
+//}
+//      total_fp_adds += (double) 12*num_active*num_cells;
+//      total_fp_muls += (double) 3*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   }
+//}
+//
+//void stencil_7(int var)
+//{
+//   int in, i, j, k, v;
+//   double work[x_block_size+2][y_block_size+2][z_block_size+2];
+//   block *bp;
+//
+//   if (var < mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
+//                                   bp->array[var+  mat][i-1][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j-1][k  ]*
+//                                   bp->array[var+2*mat][i  ][j-1][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k-1]*
+//                                   bp->array[var+3*mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ]*
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k+1]*
+//                                   bp->array[var+3*mat][i  ][j  ][k+1] +
+//                                   bp->array[var      ][i  ][j+1][k  ]*
+//                                   bp->array[var+2*mat][i  ][j+1][k  ] +
+//                                   bp->array[var      ][i+1][j  ][k  ]*
+//                                   bp->array[var+  mat][i+1][j  ][k  ])/
+//                                   7.0*(beta + bp->array[var][i][j][k]);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//      total_fp_adds += (double) 7*num_active*num_cells;
+//      total_fp_muls += (double) 8*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 2*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
+//                                   bp->array[var+  mat][i-1][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j-1][k  ]*
+//                                   bp->array[var+2*mat][i  ][j-1][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k-1]*
+//                                   bp->array[var-  mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ]*
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k+1]*
+//                                   bp->array[var-  mat][i  ][j  ][k+1] +
+//                                   bp->array[var      ][i  ][j+1][k  ]*
+//                                   bp->array[var+2*mat][i  ][j+1][k  ] +
+//                                   bp->array[var      ][i+1][j  ][k  ]*
+//                                   bp->array[var+  mat][i+1][j  ][k  ])/
+//                                   7.0*(beta + bp->array[var][i][j][k]);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//      total_fp_adds += (double) 7*num_active*num_cells;
+//      total_fp_muls += (double) 8*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 3*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
+//                                   bp->array[var+  mat][i-1][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j-1][k  ]*
+//                                   bp->array[var-2*mat][i  ][j-1][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k-1]*
+//                                   bp->array[var-  mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ]*
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k+1]*
+//                                   bp->array[var-  mat][i  ][j  ][k+1] +
+//                                   bp->array[var      ][i  ][j+1][k  ]*
+//                                   bp->array[var-2*mat][i  ][j+1][k  ] +
+//                                   bp->array[var      ][i+1][j  ][k  ]*
+//                                   bp->array[var+  mat][i+1][j  ][k  ])/
+//                                   7.0*(beta + bp->array[var][i][j][k]);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//      total_fp_adds += (double) 7*num_active*num_cells;
+//      total_fp_muls += (double) 8*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var      ][i-1][j  ][k  ]*
+//                                   bp->array[var-3*mat][i-1][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j-1][k  ]*
+//                                   bp->array[var-2*mat][i  ][j-1][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k-1]*
+//                                   bp->array[var-  mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ]*
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var      ][i  ][j  ][k+1]*
+//                                   bp->array[var-  mat][i  ][j  ][k+1] +
+//                                   bp->array[var      ][i  ][j+1][k  ]*
+//                                   bp->array[var-2*mat][i  ][j+1][k  ] +
+//                                   bp->array[var      ][i+1][j  ][k  ]*
+//                                   bp->array[var-3*mat][i+1][j  ][k  ])/
+//                                   7.0*(beta + bp->array[var][i][j][k]);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//      total_fp_adds += (double) 7*num_active*num_cells;
+//      total_fp_muls += (double) 8*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   }
+//}
+//
+//void stencil_27(int var)
+//{
+//   int in, i, j, k, v;
+//   double work[x_block_size+2][y_block_size+2][z_block_size+2];
+//   block *bp;
+//
+//   if (var < mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//#pragma omp for
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var+3*mat][i-1][j-1][k-1] +
+//                                   bp->array[var+2*mat][i-1][j-1][k  ] +
+//                                   bp->array[var+3*mat][i-1][j-1][k+1] +
+//                                   bp->array[var+2*mat][i-1][j  ][k-1] +
+//                                   bp->array[var+  mat][i-1][j  ][k  ] +
+//                                   bp->array[var+2*mat][i-1][j  ][k+1] +
+//                                   bp->array[var+3*mat][i-1][j+1][k-1] +
+//                                   bp->array[var+2*mat][i-1][j+1][k  ] +
+//                                   bp->array[var+3*mat][i-1][j+1][k+1] +
+//                                   bp->array[var+2*mat][i  ][j-1][k-1] +
+//                                   bp->array[var+  mat][i  ][j-1][k  ] +
+//                                   bp->array[var+2*mat][i  ][j-1][k+1] +
+//                                   bp->array[var+  mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var+  mat][i  ][j  ][k+1] +
+//                                   bp->array[var+2*mat][i  ][j+1][k-1] +
+//                                   bp->array[var+  mat][i  ][j+1][k  ] +
+//                                   bp->array[var+2*mat][i  ][j+1][k+1] +
+//                                   bp->array[var+3*mat][i+1][j-1][k-1] +
+//                                   bp->array[var+2*mat][i+1][j-1][k  ] +
+//                                   bp->array[var+3*mat][i+1][j-1][k+1] +
+//                                   bp->array[var+2*mat][i+1][j  ][k-1] +
+//                                   bp->array[var+  mat][i+1][j  ][k  ] +
+//                                   bp->array[var+2*mat][i+1][j  ][k+1] +
+//                                   bp->array[var+3*mat][i+1][j+1][k-1] +
+//                                   bp->array[var+2*mat][i+1][j+1][k  ] +
+//                                   bp->array[var+3*mat][i+1][j+1][k+1])/
+//                                  (beta+27.0);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//      total_fp_adds += (double) 27*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 2*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var-  mat][i-1][j-1][k-1] +
+//                                   bp->array[var+2*mat][i-1][j-1][k  ] +
+//                                   bp->array[var-  mat][i-1][j-1][k+1] +
+//                                   bp->array[var+2*mat][i-1][j  ][k-1] +
+//                                   bp->array[var+  mat][i-1][j  ][k  ] +
+//                                   bp->array[var+2*mat][i-1][j  ][k+1] +
+//                                   bp->array[var-  mat][i-1][j+1][k-1] +
+//                                   bp->array[var+2*mat][i-1][j+1][k  ] +
+//                                   bp->array[var-  mat][i-1][j+1][k+1] +
+//                                   bp->array[var+2*mat][i  ][j-1][k-1] +
+//                                   bp->array[var+  mat][i  ][j-1][k  ] +
+//                                   bp->array[var+2*mat][i  ][j-1][k+1] +
+//                                   bp->array[var+  mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var+  mat][i  ][j  ][k+1] +
+//                                   bp->array[var+2*mat][i  ][j+1][k-1] +
+//                                   bp->array[var+  mat][i  ][j+1][k  ] +
+//                                   bp->array[var+2*mat][i  ][j+1][k+1] +
+//                                   bp->array[var-  mat][i+1][j-1][k-1] +
+//                                   bp->array[var+2*mat][i+1][j-1][k  ] +
+//                                   bp->array[var-  mat][i+1][j-1][k+1] +
+//                                   bp->array[var+2*mat][i+1][j  ][k-1] +
+//                                   bp->array[var+  mat][i+1][j  ][k  ] +
+//                                   bp->array[var+2*mat][i+1][j  ][k+1] +
+//                                   bp->array[var-  mat][i+1][j+1][k-1] +
+//                                   bp->array[var+2*mat][i+1][j+1][k  ] +
+//                                   bp->array[var-  mat][i+1][j+1][k+1])/
+//                                  (beta+27.0);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//
+//      total_fp_adds += (double) 27*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else if (var < 3*mat) {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var-  mat][i-1][j-1][k-1] +
+//                                   bp->array[var-2*mat][i-1][j-1][k  ] +
+//                                   bp->array[var-  mat][i-1][j-1][k+1] +
+//                                   bp->array[var-2*mat][i-1][j  ][k-1] +
+//                                   bp->array[var+  mat][i-1][j  ][k  ] +
+//                                   bp->array[var-2*mat][i-1][j  ][k+1] +
+//                                   bp->array[var-  mat][i-1][j+1][k-1] +
+//                                   bp->array[var-2*mat][i-1][j+1][k  ] +
+//                                   bp->array[var-  mat][i-1][j+1][k+1] +
+//                                   bp->array[var-2*mat][i  ][j-1][k-1] +
+//                                   bp->array[var+  mat][i  ][j-1][k  ] +
+//                                   bp->array[var-2*mat][i  ][j-1][k+1] +
+//                                   bp->array[var+  mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var+  mat][i  ][j  ][k+1] +
+//                                   bp->array[var-2*mat][i  ][j+1][k-1] +
+//                                   bp->array[var+  mat][i  ][j+1][k  ] +
+//                                   bp->array[var-2*mat][i  ][j+1][k+1] +
+//                                   bp->array[var-  mat][i+1][j-1][k-1] +
+//                                   bp->array[var-2*mat][i+1][j-1][k  ] +
+//                                   bp->array[var-  mat][i+1][j-1][k+1] +
+//                                   bp->array[var-2*mat][i+1][j  ][k-1] +
+//                                   bp->array[var+  mat][i+1][j  ][k  ] +
+//                                   bp->array[var-2*mat][i+1][j  ][k+1] +
+//                                   bp->array[var-  mat][i+1][j+1][k-1] +
+//                                   bp->array[var-2*mat][i+1][j+1][k  ] +
+//                                   bp->array[var-  mat][i+1][j+1][k+1])/
+//                                  (beta+27.0);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//      total_fp_adds += (double) 27*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   } else {
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//      for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//         bp = &blocks[sorted_list[in].n];
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  work[i][j][k] = (bp->array[var-  mat][i-1][j-1][k-1] +
+//                                   bp->array[var-2*mat][i-1][j-1][k  ] +
+//                                   bp->array[var-  mat][i-1][j-1][k+1] +
+//                                   bp->array[var-2*mat][i-1][j  ][k-1] +
+//                                   bp->array[var-3*mat][i-1][j  ][k  ] +
+//                                   bp->array[var-2*mat][i-1][j  ][k+1] +
+//                                   bp->array[var-  mat][i-1][j+1][k-1] +
+//                                   bp->array[var-2*mat][i-1][j+1][k  ] +
+//                                   bp->array[var-  mat][i-1][j+1][k+1] +
+//                                   bp->array[var-2*mat][i  ][j-1][k-1] +
+//                                   bp->array[var-3*mat][i  ][j-1][k  ] +
+//                                   bp->array[var-2*mat][i  ][j-1][k+1] +
+//                                   bp->array[var-3*mat][i  ][j  ][k-1] +
+//                                   bp->array[var      ][i  ][j  ][k  ] +
+//                                   bp->array[var-3*mat][i  ][j  ][k+1] +
+//                                   bp->array[var-2*mat][i  ][j+1][k-1] +
+//                                   bp->array[var-3*mat][i  ][j+1][k  ] +
+//                                   bp->array[var-2*mat][i  ][j+1][k+1] +
+//                                   bp->array[var-  mat][i+1][j-1][k-1] +
+//                                   bp->array[var-2*mat][i+1][j-1][k  ] +
+//                                   bp->array[var-  mat][i+1][j-1][k+1] +
+//                                   bp->array[var-2*mat][i+1][j  ][k-1] +
+//                                   bp->array[var-3*mat][i+1][j  ][k  ] +
+//                                   bp->array[var-2*mat][i+1][j  ][k+1] +
+//                                   bp->array[var-  mat][i+1][j+1][k-1] +
+//                                   bp->array[var-2*mat][i+1][j+1][k  ] +
+//                                   bp->array[var-  mat][i+1][j+1][k+1])/
+//                                  (beta+27.0);
+//         for (i = 1; i <= x_block_size; i++)
+//            for (j = 1; j <= y_block_size; j++)
+//               for (k = 1; k <= z_block_size; k++)
+//                  bp->array[var][i][j][k] = work[i][j][k];
+//      }
+//}
+//
+//      total_fp_adds += (double) 27*num_active*num_cells;
+//      total_fp_divs += (double) num_active*num_cells;
+//   }
+//}
+//
+//void stencil_check(int var)
+//{
+//   int in, i, j, k, v;
+//   double work[x_block_size+2][y_block_size+2][z_block_size+2];
+//   block *bp;
+//
+//#pragma omp parallel default(shared) private(i, j, k, bp, v)
+//{
+//   for (in = 0; in < sorted_index[num_refine+1]; in++) {
+//      bp = &blocks[sorted_list[in].n];
+//      for (i = 1; i <= x_block_size; i++)
+//         for (j = 1; j <= y_block_size; j++)
+//            for (k = 1; k <= z_block_size; k++) {
+//               bp->array[var][i][j][k] = fabs(bp->array[var][i][j][k]);
+//               if (bp->array[var][i][j][k] >= 1.0) {
+//                  bp->array[var][i][j][k] /= (beta + alpha[0] +
+//                                              bp->array[var][i][j][k]);
+//                  total_fp_divs += (double) 1;
+//                  total_fp_adds += (double) 2;
+//               }
+//               else if (bp->array[var][i][j][k] < 0.1) {
+//                  bp->array[var][i][j][k] *= 10.0 - beta;
+//                  total_fp_muls += (double) 1;
+//                  total_fp_adds += (double) 1;
+//               }
+//            }
+//   }
+//}
+//}

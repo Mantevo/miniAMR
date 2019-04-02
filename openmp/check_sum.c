@@ -46,10 +46,12 @@ double check_sum(int var)
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
       bp = &blocks[sorted_list[in].n];
       block_sum = 0.0;
+      typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+      block3D_t array = (block3D_t)&bp->array[var*block3D_size];
       for (i = 1; i <= x_block_size; i++)
          for (j = 1; j <= y_block_size; j++)
             for (k = 1; k <= z_block_size; k++)
-               block_sum += bp->array[var][i][j][k];
+               block_sum += array[i][j][k];
 //if (!my_pe) printf("cs in %d block %d sum %lf\n", in, sorted_list[in].n, block_sum);
       sum += block_sum;
    }
