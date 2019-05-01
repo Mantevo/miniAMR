@@ -86,12 +86,12 @@ void stencil_driver(int var, int cacl_stage)
 
 void stencil_calc(int var, int stencil_in)
 {
-   typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
 
    if (stencil_in == 7) {
 #pragma omp parallel for default(shared)
       for (int in = 0; in < sorted_index[num_refine+1]; in++) {
          block *bp = &blocks[sorted_list[in].n];
+         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
          block3D_t array = (block3D_t)&bp->array[var*block3D_size];
          double work[x_block_size+2][y_block_size+2][z_block_size+2];
          memcpy(work, array, sizeof(work));
@@ -113,6 +113,7 @@ void stencil_calc(int var, int stencil_in)
 #pragma omp parallel for default(shared)
       for (int in = 0; in < sorted_index[num_refine+1]; in++) {
          block *bp = &blocks[sorted_list[in].n];
+         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
          block3D_t array = (block3D_t)&bp->array[var*block3D_size];
          double work[x_block_size+2][y_block_size+2][z_block_size+2];
          memcpy(work, array, sizeof(work));
