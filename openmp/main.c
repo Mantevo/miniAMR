@@ -388,16 +388,6 @@ void allocate(void)
    for (n = 0; n < max_num_dots; n++)
       dots[n].number = -1;
 
-#pragma omp parallel private (i, j)
-   {
-   work = (double ***) malloc((x_block_size+2)*sizeof(double **));
-   for (i = 0; i < x_block_size+2; i++) {
-      work[i] = (double **) malloc((y_block_size+2)*sizeof(double *));
-      for (j = 0; j < y_block_size+2; j++)
-         work[i][j] = (double *) malloc((z_block_size+2)*sizeof(double));
-   }
-   }
-
    grid_sum = (double *)ma_malloc(num_vars*sizeof(double), __FILE__, __LINE__);
 
    p8 = (int *) ma_malloc((num_refine+2)*sizeof(int), __FILE__, __LINE__);
