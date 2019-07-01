@@ -111,8 +111,6 @@ num_sz global_active;
 int x_block_half, y_block_half, z_block_half;
 double tol;
 double *grid_sum;
-double ***work;
-#pragma omp threadprivate(work)
 int *p8, *p2;
 int mesh_size[3];
 int max_mesh_size;
