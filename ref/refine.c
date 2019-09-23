@@ -37,7 +37,7 @@
 void refine(int ts)
 {
    int i, j, n, in, min_b, max_b, sum_b, num_refine_step, num_split,
-       nm_r, nm_c, nm_t;
+       nm_r, nm_c, nm_t, nc_t, nc_u, nc[5], nca[5], ncn[5], ncx[5], done;
    double ratio, tp, tm, tu, tp1, tm1, tu1, t1, t2, t3, t4, t5;
    block *bp;
 
@@ -219,7 +219,7 @@ void refine(int ts)
                 j, ts, num_blocks[j]);
    }
    if (!my_pe && report_perf & 8)
-      printf("Total number of blocks at timestep %d is %ld\n\n", ts,
+      printf("Total number of blocks at timestep %d is %ld\n", ts,
              global_active);
    timer_refine_sy += timer() - t2;
    t4 += timer() - t2;
@@ -242,6 +242,65 @@ void refine(int ts)
          t4 += timer() - t2;
       }
    }
+
+   num_comm_x += nc[0] = num_comm_partners[0];
+   if (num_comm_partners[0] > num_comm_x_max)
+      num_comm_x_max = num_comm_partners[0];
+   if (num_comm_partners[0] < num_comm_x_min)
+      num_comm_x_min = num_comm_partners[0];
+   num_comm_y += nc[1] = num_comm_partners[1];
+   if (num_comm_partners[1] > num_comm_y_max)
+      num_comm_y_max = num_comm_partners[1];
+   if (num_comm_partners[1] < num_comm_y_min)
+      num_comm_y_min = num_comm_partners[1];
+   num_comm_z += nc[2] = num_comm_partners[2];
+   if (num_comm_partners[2] > num_comm_z_max)
+      num_comm_z_max = num_comm_partners[2];
+   if (num_comm_partners[2] < num_comm_z_min)
+      num_comm_z_min = num_comm_partners[2];
+   nc_t = num_comm_partners[0] + num_comm_partners[1] + num_comm_partners[2];
+   num_comm_tot += nc[3] = nc_u = nc_t;
+   if (nc_t > num_comm_t_max)
+      num_comm_t_max = nc_t;
+   if (nc_t < num_comm_t_min)
+      num_comm_t_min = nc_t;
+   for (n = 0; n < num_comm_partners[0]; n++)
+      for (i = 1; i < 3; i++)
+         for (j = 0; j < num_comm_partners[i]; j++)
+            if (comm_partner[0][n] == comm_partner[i][j])
+               nc_u--;
+   for (n = 0; n < num_comm_partners[1]; n++) {
+      for (done = 0, j = 0; j < num_comm_partners[0] && !done; j++)
+         if (comm_partner[1][n] == comm_partner[0][j])
+            done = 1;
+      if (!done)
+         for (done = 0, j = 0; j < num_comm_partners[2] && !done; j++)
+            if (comm_partner[1][n] == comm_partner[2][j]) {
+               nc_u--;
+               done = 1;
+            }
+   }
+   num_comm_uniq += nc[4] = nc_u;
+   if (nc_u > num_comm_u_max)
+      num_comm_u_max = nc_u;
+   if (nc_u < num_comm_u_min)
+      num_comm_u_min = nc_u;
+   MPI_Allreduce(nc, ncn, 5, MPI_INTEGER, MPI_MIN, MPI_COMM_WORLD);
+   MPI_Allreduce(nc, ncx, 5, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD);
+   MPI_Allreduce(nc, nca, 5, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD);
+   if (!my_pe && report_perf & 8) {
+      printf("comm partners x ave %6.2lf min %d max %d\n",
+             ((double) nca[0]/(double) num_pes), ncn[0], ncx[0]);
+      printf("comm partners y ave %6.2lf min %d max %d\n",
+             ((double) nca[1]/(double) num_pes), ncn[1], ncx[1]);
+      printf("comm partners z ave %6.2lf min %d max %d\n",
+             ((double) nca[2]/(double) num_pes), ncn[2], ncx[2]);
+      printf("comm partners total ave %6.2lf min %d max %d\n",
+             ((double) nca[3]/(double) num_pes), ncn[3], ncx[3]);
+      printf("comm partners unique ave %6.2lf min %d max %d\n\n",
+             ((double) nca[4]/(double) num_pes), ncn[4], ncx[4]);
+   }
+
    num_moved_rs += nm_r;
    num_moved_coarsen += nm_c;
    num_moved_reduce += nm_t;

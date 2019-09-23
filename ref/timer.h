@@ -24,10 +24,10 @@
 //
 // ************************************************************************
 
-double average[131];
-double stddev[128];
-double minimum[128];
-double maximum[128];
+double average[146];
+double stddev[143];
+double minimum[143];
+double maximum[143];
 
 double timer_all;
 
@@ -101,6 +101,21 @@ int num_moved_lb;
 int num_moved_rs;
 int num_moved_reduce;
 int num_moved_coarsen;
+int num_comm_x;
+int num_comm_y;
+int num_comm_z;
+int num_comm_tot;
+int num_comm_uniq;
+int num_comm_x_min;
+int num_comm_y_min;
+int num_comm_z_min;
+int num_comm_t_min;
+int num_comm_u_min;
+int num_comm_x_max;
+int num_comm_y_max;
+int num_comm_z_max;
+int num_comm_t_max;
+int num_comm_u_max;
 int counter_halo_recv[3];
 int counter_halo_send[3];
 double size_mesg_recv[3];

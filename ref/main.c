@@ -48,6 +48,7 @@ int main(int argc, char** argv)
 
    counter_malloc = 0;
    size_malloc = 0.0;
+   num_objects = object_num = 0;
 
    /* set initial values */
    if (!my_pe) {
@@ -131,7 +132,7 @@ int main(int argc, char** argv)
          } else if (!strcmp(argv[i], "--object")) {
             if (object_num >= num_objects) {
                printf("object number greater than num_objects\n");
-               exit(-1);
+               MPI_Abort(MPI_COMM_WORLD, -1);
             }
             objects[object_num].type = atoi(argv[++i]);
             objects[object_num].bounce = atoi(argv[++i]);
@@ -156,8 +157,14 @@ int main(int argc, char** argv)
             print_help_message();
             MPI_Abort(MPI_COMM_WORLD, -1);
          }
+
+      if (object_num != num_objects) {
+         printf("Error - number of objects less than specified");
+         MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+
       if (check_input())
-         exit(-1);
+         MPI_Abort(MPI_COMM_WORLD, -1);
 
       if (!block_change)
          block_change = num_refine;
@@ -302,6 +309,8 @@ int main(int argc, char** argv)
    profile();
 
    deallocate();
+
+   MPI_Barrier(MPI_COMM_WORLD);
 
    MPI_Finalize();
 

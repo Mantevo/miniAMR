@@ -40,11 +40,11 @@ void profile(void)
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
           total_fp_divs;
    object *op;
-   char *version = "1.4.3";
+   char *version = "1.4.4";
    FILE *fp;
 
    calculate_results();
-   total_fp_ops = average[128] + average[129] + average[130];
+   total_fp_ops = average[143] + average[144] + average[145];
    total_gflops = total_fp_ops/(average[38]*1024.0*1024.0*1024.0);
    gflops_rank = total_gflops/((double) num_pes);
 
@@ -141,6 +141,12 @@ void profile(void)
          fprintf(fp, "   total_unpack_faces_ave: %lf\n", average[9]);
          fprintf(fp, "   total_unpack_faces_min: %lf\n", minimum[9]);
          fprintf(fp, "   total_unpack_faces_max: %lf\n", maximum[9]);
+         fprintf(fp, "   comm_partners_total: %lf\n", average[131]);
+         fprintf(fp, "   comm_partners_total_min: %lf\n", minimum[136]);
+         fprintf(fp, "   comm_partners_total_max: %lf\n", maximum[141]);
+         fprintf(fp, "   comm_partners_unique: %lf\n", average[132]);
+         fprintf(fp, "   comm_partners_unique_min: %lf\n", minimum[137]);
+         fprintf(fp, "   comm_partners_unique_max: %lf\n", maximum[142]);
          fprintf(fp, "   total_mess_recv_ave: %lf\n", average[70]);
          fprintf(fp, "   total_mess_recv_min: %lf\n", minimum[70]);
          fprintf(fp, "   total_mess_recv_max: %lf\n", maximum[70]);
@@ -196,6 +202,9 @@ void profile(void)
          fprintf(fp, "      x_unpack_faces_ave: %lf\n", average[18]);
          fprintf(fp, "      x_unpack_faces_min: %lf\n", minimum[18]);
          fprintf(fp, "      x_unpack_faces_max: %lf\n", maximum[18]);
+         fprintf(fp, "      x_comm_partners: %lf\n", average[128]);
+         fprintf(fp, "      x_comm_partners_min: %d\n", minimum[133]);
+         fprintf(fp, "      x_comm_partners_max: %d\n", maximum[138]);
          fprintf(fp, "      x_mess_recv_ave: %lf\n", average[79]);
          fprintf(fp, "      x_mess_recv_min: %lf\n", minimum[79]);
          fprintf(fp, "      x_mess_recv_max: %lf\n", maximum[79]);
@@ -251,6 +260,9 @@ void profile(void)
          fprintf(fp, "      y_unpack_faces_ave: %lf\n", average[27]);
          fprintf(fp, "      y_unpack_faces_min: %lf\n", minimum[27]);
          fprintf(fp, "      y_unpack_faces_max: %lf\n", maximum[27]);
+         fprintf(fp, "      y_comm_partners: %lf\n", average[129]);
+         fprintf(fp, "      y_comm_partners_min: %d\n", minimum[134]);
+         fprintf(fp, "      y_comm_partners_max: %d\n", maximum[139]);
          fprintf(fp, "      y_mess_recv_ave: %lf\n", average[88]);
          fprintf(fp, "      y_mess_recv_min: %lf\n", minimum[88]);
          fprintf(fp, "      y_mess_recv_max: %lf\n", maximum[88]);
@@ -306,6 +318,9 @@ void profile(void)
          fprintf(fp, "      z_unpack_faces_ave: %lf\n", average[36]);
          fprintf(fp, "      z_unpack_faces_min: %lf\n", minimum[36]);
          fprintf(fp, "      z_unpack_faces_max: %lf\n", maximum[36]);
+         fprintf(fp, "      z_comm_partners: %lf\n", average[130]);
+         fprintf(fp, "      z_comm_partners_min: %d\n", minimum[135]);
+         fprintf(fp, "      z_comm_partners_max: %d\n", maximum[140]);
          fprintf(fp, "      z_mess_recv_ave: %lf\n", average[97]);
          fprintf(fp, "      z_mess_recv_min: %lf\n", minimum[97]);
          fprintf(fp, "      z_mess_recv_max: %lf\n", maximum[97]);
@@ -580,7 +595,7 @@ void profile(void)
          if (lb_opt == 0)
             fprintf(fp, "Load balance will not be performed\n");
          else
-            fprintf(fp, "Load balance when inbalanced by %d%\n", inbalance);
+            fprintf(fp, "Load balance when inbalanced by %d\n", inbalance);
          if (lb_opt == 2)
             fprintf(fp, "Load balance at each phase of refinement step\n");
          if (plot_freq)
@@ -620,9 +635,9 @@ void profile(void)
          fprintf(fp, "     total GFLOPS:             %lf\n", total_gflops);
          fprintf(fp, "     Average GFLOPS per rank:  %lf\n\n", gflops_rank);
          fprintf(fp, "     Total floating point ops: %lf\n\n", total_fp_ops);
-         fprintf(fp, "        Adds:                  %lf\n", average[128]);
-         fprintf(fp, "        Muls:                  %lf\n", average[129]);
-         fprintf(fp, "        Divides:               %lf\n\n", average[130]);
+         fprintf(fp, "        Adds:                  %lf\n", average[143]);
+         fprintf(fp, "        Muls:                  %lf\n", average[144]);
+         fprintf(fp, "        Divides:               %lf\n\n", average[145]);
 
          fprintf(fp, "---------------------------------------------\n");
          fprintf(fp, "           Interblock communication\n");
@@ -667,6 +682,30 @@ void profile(void)
                    average[9+9*i], stddev[9+9*i], minimum[9+9*i],
                    maximum[9+9*i]);
 
+            if (!i) {
+               fprintf(fp, "     Comm partners total ave: %lf %lf %lf %lf\n",
+                       average[131], stddev[131], minimum[131], maximum[131]);
+               fprintf(fp, "     Comm partners total min: %lf %lf %lf %lf\n",
+                       average[136], stddev[136], minimum[136], maximum[136]);
+               fprintf(fp, "     Comm partners total max: %lf %lf %lf %lf\n",
+                       average[141], stddev[141], minimum[141], maximum[141]);
+               fprintf(fp, "     Comm partners uniq ave : %lf %lf %lf %lf\n",
+                       average[132], stddev[132], minimum[132], maximum[132]);
+               fprintf(fp, "     Comm partners uniq min : %lf %lf %lf %lf\n",
+                       average[137], stddev[137], minimum[137], maximum[137]);
+               fprintf(fp, "     Comm partners uniq max : %lf %lf %lf %lf\n",
+                       average[142], stddev[142], minimum[142], maximum[142]);
+            } else {
+               fprintf(fp, "     Comm partners average  : %lf %lf %lf %lf\n",
+                       average[127+i], stddev[127+i], minimum[127+i],
+                       maximum[127+i]);
+               fprintf(fp, "     Comm partners minimum  : %lf %lf %lf %lf\n",
+                       average[132+i], stddev[132+i], minimum[132+i],
+                       maximum[132+i]);
+               fprintf(fp, "     Comm partners maximum  : %lf %lf %lf %lf\n",
+                       average[137+i], stddev[137+i], minimum[137+i],
+                       maximum[137+i]);
+            }
             fprintf(fp, "     Messages received      : %lf %lf %lf %lf\n",
                average[70+9*i], stddev[70+9*i], minimum[70+9*i],
                    maximum[70+9*i]);
@@ -1001,9 +1040,9 @@ void profile(void)
          printf("     total GFLOPS:             %lf\n", total_gflops);
          printf("     Average GFLOPS per rank:  %lf\n\n", gflops_rank);
          printf("     Total floating point ops: %lf\n\n", total_fp_ops);
-         printf("        Adds:                  %lf\n", average[128]);
-         printf("        Muls:                  %lf\n", average[129]);
-         printf("        Divides:               %lf\n\n", average[130]);
+         printf("        Adds:                  %lf\n", average[143]);
+         printf("        Muls:                  %lf\n", average[144]);
+         printf("        Divides:               %lf\n\n", average[145]);
 
          printf("---------------------------------------------\n");
          printf("           Interblock communication\n");
@@ -1048,32 +1087,56 @@ void profile(void)
                    average[9+9*i], stddev[9+9*i], minimum[9+9*i],
                    maximum[9+9*i]);
 
+            if (!i) {
+               printf("     Comm partners total ave: %lf %lf %lf %lf\n",
+                      average[131], stddev[131], minimum[131], maximum[131]);
+               printf("     Comm partners total min: %lf %lf %lf %lf\n",
+                      average[136], stddev[136], minimum[136], maximum[136]);
+               printf("     Comm partners total max: %lf %lf %lf %lf\n",
+                      average[141], stddev[141], minimum[141], maximum[141]);
+               printf("     Comm partners uniq ave : %lf %lf %lf %lf\n",
+                      average[132], stddev[132], minimum[132], maximum[132]);
+               printf("     Comm partners uniq min : %lf %lf %lf %lf\n",
+                      average[137], stddev[137], minimum[137], maximum[137]);
+               printf("     Comm partners uniq max : %lf %lf %lf %lf\n",
+                      average[142], stddev[142], minimum[142], maximum[142]);
+            } else {
+               printf("     Comm partners average  : %lf %lf %lf %lf\n",
+                      average[127+i], stddev[127+i], minimum[127+i],
+                      maximum[127+i]);
+               printf("     Comm partners minimum  : %lf %lf %lf %lf\n",
+                      average[132+i], stddev[132+i], minimum[132+i],
+                      maximum[132+i]);
+               printf("     Comm partners maximum  : %lf %lf %lf %lf\n",
+                      average[137+i], stddev[137+i], minimum[137+i],
+                      maximum[137+i]);
+            }
             printf("     Messages received      : %lf %lf %lf %lf\n",
-               average[70+9*i], stddev[70+9*i], minimum[70+9*i],
+                   average[70+9*i], stddev[70+9*i], minimum[70+9*i],
                    maximum[70+9*i]);
             printf("     Bytes received         : %lf %lf %lf %lf\n",
-               average[68+9*i], stddev[68+9*i], minimum[68+9*i],
+                   average[68+9*i], stddev[68+9*i], minimum[68+9*i],
                    maximum[68+9*i]);
             printf("     Faces received         : %lf %lf %lf %lf\n",
-               average[72+9*i], stddev[72+9*i], minimum[72+9*i],
+                   average[72+9*i], stddev[72+9*i], minimum[72+9*i],
                    maximum[72+9*i]);
             printf("     Messages sent          : %lf %lf %lf %lf\n",
-               average[71+9*i], stddev[71+9*i], minimum[71+9*i],
+                   average[71+9*i], stddev[71+9*i], minimum[71+9*i],
                    maximum[71+9*i]);
             printf("     Bytes sent             : %lf %lf %lf %lf\n",
-               average[69+9*i], stddev[69+9*i], minimum[69+9*i],
+                   average[69+9*i], stddev[69+9*i], minimum[69+9*i],
                    maximum[69+9*i]);
             printf("     Faces sent             : %lf %lf %lf %lf\n",
-               average[73+9*i], stddev[73+9*i], minimum[73+9*i],
+                   average[73+9*i], stddev[73+9*i], minimum[73+9*i],
                    maximum[73+9*i]);
             printf("     Faces exchanged same   : %lf %lf %lf %lf\n",
-               average[75+9*i], stddev[75+9*i], minimum[75+9*i],
+                   average[75+9*i], stddev[75+9*i], minimum[75+9*i],
                    maximum[75+9*i]);
             printf("     Faces exchanged diff   : %lf %lf %lf %lf\n",
-               average[76+9*i], stddev[76+9*i], minimum[76+9*i],
+                   average[76+9*i], stddev[76+9*i], minimum[76+9*i],
                    maximum[76+9*i]);
             printf("     Faces with BC applied  : %lf %lf %lf %lf\n",
-               average[74+9*i], stddev[74+9*i], minimum[74+9*i],
+                   average[74+9*i], stddev[74+9*i], minimum[74+9*i],
                    maximum[74+9*i]);
          }
 
@@ -1216,7 +1279,7 @@ printf("Summary: ranks %d ts %d time %lf calc %lf max comm %lf min red %lf refin
 
 void calculate_results(void)
 {
-   double results[131], stddev_sum[128];
+   double results[146], stddev_sum[143];
    int i;
 
    results[0] = timer_all;
@@ -1303,20 +1366,35 @@ void calculate_results(void)
    results[113] = size_malloc_init;
    results[114] = (double) (counter_malloc - counter_malloc_init);
    results[115] = size_malloc - size_malloc_init;
-   results[128] = total_fp_adds;
-   results[129] = total_fp_muls;
-   results[130] = total_fp_divs;
+   results[128] = (double) num_comm_x/(double) nrs;
+   results[129] = (double) num_comm_y/(double) nrs;
+   results[130] = (double) num_comm_z/(double) nrs;
+   results[131] = (double) num_comm_tot/(double) nrs;
+   results[132] = (double) num_comm_uniq/(double) nrs;
+   results[133] = num_comm_x_min;
+   results[134] = num_comm_y_min;
+   results[135] = num_comm_z_min;
+   results[136] = num_comm_t_min;
+   results[137] = num_comm_u_min;
+   results[138] = num_comm_x_max;
+   results[139] = num_comm_y_max;
+   results[140] = num_comm_z_max;
+   results[141] = num_comm_t_max;
+   results[142] = num_comm_u_max;
+   results[143] = total_fp_adds;
+   results[144] = total_fp_muls;
+   results[145] = total_fp_divs;
 
-   MPI_Allreduce(results, average, 131, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(results, minimum, 128, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-   MPI_Allreduce(results, maximum, 128, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+   MPI_Allreduce(results, average, 146, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(results, minimum, 143, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+   MPI_Allreduce(results, maximum, 143, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-   for (i = 0; i < 128; i++) {
+   for (i = 0; i < 143; i++) {
       average[i] /= (double) num_pes;
       stddev[i] = (results[i] - average[i])*(results[i] - average[i]);
    }
-   MPI_Allreduce(stddev, stddev_sum, 128, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   for (i = 0; i < 128; i++)
+   MPI_Allreduce(stddev, stddev_sum, 143, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   for (i = 0; i < 143; i++)
       stddev[i] = sqrt(stddev_sum[i]/((double) num_pes));
 }
 
@@ -1396,6 +1474,21 @@ void init_profile(void)
    num_moved_rs = 0;
    num_moved_reduce = 0;
    num_moved_coarsen = 0;
+   num_comm_x = 0;
+   num_comm_y = 0;
+   num_comm_z = 0;
+   num_comm_tot = 0;
+   num_comm_uniq = 0;
+   num_comm_x_max = 0;
+   num_comm_y_max = 0;
+   num_comm_z_max = 0;
+   num_comm_t_max = 0;
+   num_comm_u_max = 0;
+   num_comm_x_min = num_pes;
+   num_comm_y_min = num_pes;
+   num_comm_z_min = num_pes;
+   num_comm_t_min = num_pes;
+   num_comm_u_min = num_pes;
    for (i = 0; i < 3; i++) {
       counter_halo_recv[i] = 0;
       counter_halo_send[i] = 0;

@@ -116,11 +116,10 @@ void driver(void)
          delta = calc_time_step();
          if (sim_time >= end_time)
             done = 1;
-         else
-            sim_time += delta;
       } else
          if (ts >= num_tsteps)
             done = 1;
+      sim_time += delta;
    }
 
    end_time = sim_time;

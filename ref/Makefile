@@ -24,7 +24,7 @@ clean:
 
 block.o: block.h proto.h comm.h timer.h
 
-check_sum.o: block.h comm.h proto.h
+check_sum.o: block.h comm.h proto.h timer.h
 
 comm_block.o: block.h comm.h proto.h
 
@@ -40,7 +40,7 @@ driver.o: block.h comm.h proto.h timer.h
 
 init.o: block.h proto.h comm.h
 
-main.o: block.h comm.h proto.h param.h
+main.o: block.h comm.h proto.h param.h timer.h
 
 move.o: block.h comm.h proto.h
 
@@ -58,4 +58,4 @@ stencil.o: block.h comm.h proto.h
 
 target.o: block.h comm.h proto.h timer.h
 
-util.o: block.h comm.h proto.h
+util.o: block.h comm.h proto.h timer.h
