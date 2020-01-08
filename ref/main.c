@@ -34,6 +34,8 @@
 #include "timer.h"
 #include "proto.h"
 
+#include "instrumentation.h"
+
 int main(int argc, char** argv)
 {
    int i, ierr, object_num;

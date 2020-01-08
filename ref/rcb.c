@@ -33,6 +33,8 @@
 #include "timer.h"
 #include "proto.h"
 
+#include "instrumentation.h"
+
 // This file includes routines needed for load balancing.  Load balancing is
 // based on RCB.  At each stage, a direction and factor is chosen (factor is
 // based on the prime factorization of the number of processors) and the
