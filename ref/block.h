@@ -70,9 +70,6 @@ int my_pe;
 int num_pes;
 
 int max_num_blocks;
-int target_active;
-int target_max;
-int target_min;
 int num_refine;
 int uniform_refine;
 int x_block_size, y_block_size, z_block_size;
@@ -101,6 +98,12 @@ int nonblocking;
 int refine_ghost;
 int use_time;
 double end_time;
+int send_faces;
+int change_dir;
+int group_blocks;
+int limit_move;
+int first;
+int *dirs;
 
 int max_num_parents;
 int num_parents;

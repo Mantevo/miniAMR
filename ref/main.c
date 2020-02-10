@@ -37,7 +37,7 @@
 int main(int argc, char** argv)
 {
    int i, ierr, object_num;
-   int params[37];
+   int params[38];
    double *objs;
 #include "param.h"
 
@@ -55,12 +55,6 @@ int main(int argc, char** argv)
       for (i = 1; i < argc; i++)
          if (!strcmp(argv[i], "--max_blocks"))
             max_num_blocks = atoi(argv[++i]);
-         else if (!strcmp(argv[i], "--target_active"))
-            target_active = atoi(argv[++i]);
-         else if (!strcmp(argv[i], "--target_max"))
-            target_max = atoi(argv[++i]);
-         else if (!strcmp(argv[i], "--target_min"))
-            target_min = atoi(argv[++i]);
          else if (!strcmp(argv[i], "--num_refine"))
             num_refine = atoi(argv[++i]);
          else if (!strcmp(argv[i], "--block_change"))
@@ -124,6 +118,14 @@ int main(int argc, char** argv)
             nonblocking = 0;
          else if (!strcmp(argv[i], "--refine_ghost"))
             refine_ghost = 1;
+         else if (!strcmp(argv[i], "--change_dir"))
+            change_dir = 1;
+         else if (!strcmp(argv[i], "--group_blocks"))
+            group_blocks = 1;
+         else if (!strcmp(argv[i], "--limit_move"))
+            limit_move = atoi(argv[++i]);
+         else if (!strcmp(argv[i], "--send_faces"))
+            send_faces = 1;
          else if (!strcmp(argv[i], "--num_objects")) {
             num_objects = atoi(argv[++i]);
             objects = (object *) ma_malloc(num_objects*sizeof(object),
@@ -170,44 +172,45 @@ int main(int argc, char** argv)
          block_change = num_refine;
 
       params[ 0] = max_num_blocks;
-      params[ 1] = target_active;
-      params[ 2] = num_refine;
-      params[ 3] = uniform_refine;
-      params[ 4] = x_block_size;
-      params[ 5] = y_block_size;
-      params[ 6] = z_block_size;
-      params[ 7] = num_vars;
-      params[ 8] = comm_vars;
-      params[ 9] = init_block_x;
-      params[10] = init_block_y;
-      params[11] = init_block_z;
-      params[12] = reorder;
-      params[13] = npx;
-      params[14] = npy;
-      params[15] = npz;
-      params[16] = inbalance;
-      params[17] = refine_freq;
-      params[18] = report_diffusion;
-      params[19] = error_tol;
-      params[20] = num_tsteps;
-      params[21] = stencil;
-      params[22] = report_perf;
-      params[23] = plot_freq;
-      params[24] = num_objects;
-      params[25] = checksum_freq;
-      params[26] = target_max;
-      params[27] = target_min;
-      params[28] = stages_per_ts;
-      params[29] = lb_opt;
-      params[30] = block_change;
-      params[31] = code;
-      params[32] = permute;
-      params[33] = nonblocking;
-      params[34] = refine_ghost;
-      params[35] = use_time;
-      params[36] = end_time;
+      params[ 1] = num_refine;
+      params[ 2] = uniform_refine;
+      params[ 3] = x_block_size;
+      params[ 4] = y_block_size;
+      params[ 5] = z_block_size;
+      params[ 6] = num_vars;
+      params[ 7] = comm_vars;
+      params[ 8] = init_block_x;
+      params[ 9] = init_block_y;
+      params[10] = init_block_z;
+      params[11] = reorder;
+      params[12] = npx;
+      params[13] = npy;
+      params[14] = npz;
+      params[15] = inbalance;
+      params[16] = refine_freq;
+      params[17] = report_diffusion;
+      params[18] = error_tol;
+      params[19] = num_tsteps;
+      params[20] = stencil;
+      params[21] = report_perf;
+      params[22] = plot_freq;
+      params[23] = num_objects;
+      params[24] = checksum_freq;
+      params[25] = stages_per_ts;
+      params[26] = lb_opt;
+      params[27] = block_change;
+      params[28] = code;
+      params[29] = permute;
+      params[30] = nonblocking;
+      params[31] = refine_ghost;
+      params[32] = use_time;
+      params[33] = end_time;
+      params[34] = change_dir;
+      params[35] = group_blocks;
+      params[36] = limit_move;
+      params[37] = send_faces;
 
-      MPI_Bcast(params, 37, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 38, MPI_INT, 0, MPI_COMM_WORLD);
 
       objs = (double *) ma_malloc(14*num_objects*sizeof(double),
                                   __FILE__, __LINE__);
@@ -231,44 +234,45 @@ int main(int argc, char** argv)
       MPI_Bcast(objs, (14*num_objects), MPI_DOUBLE, 0, MPI_COMM_WORLD);
       free(objs);
    } else {
-      MPI_Bcast(params, 37, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 38, MPI_INT, 0, MPI_COMM_WORLD);
       max_num_blocks = params[ 0];
-      target_active = params[ 1];
-      num_refine = params[ 2];
-      uniform_refine = params[ 3];
-      x_block_size = params[ 4];
-      y_block_size = params[ 5];
-      z_block_size = params[ 6];
-      num_vars = params[ 7];
-      comm_vars = params[ 8];
-      init_block_x = params[ 9];
-      init_block_y = params[10];
-      init_block_z = params[11];
-      reorder = params[12];
-      npx = params[13];
-      npy = params[14];
-      npz = params[15];
-      inbalance = params[16];
-      refine_freq = params[17];
-      report_diffusion = params[18];
-      error_tol = params[19];
-      num_tsteps = params[20];
-      stencil = params[21];
-      report_perf = params[22];
-      plot_freq = params[23];
-      num_objects = params[24];
-      checksum_freq = params[25];
-      target_max = params[26];
-      target_min = params[27];
-      stages_per_ts = params[28];
-      lb_opt = params[29];
-      block_change = params[30];
-      code = params[31];
-      permute = params[32];
-      nonblocking = params[33];
-      refine_ghost = params[34];
-      use_time = params[35];
-      end_time = params[36];
+      num_refine = params[ 1];
+      uniform_refine = params[ 2];
+      x_block_size = params[ 3];
+      y_block_size = params[ 4];
+      z_block_size = params[ 5];
+      num_vars = params[ 6];
+      comm_vars = params[ 7];
+      init_block_x = params[ 8];
+      init_block_y = params[ 9];
+      init_block_z = params[10];
+      reorder = params[11];
+      npx = params[12];
+      npy = params[13];
+      npz = params[14];
+      inbalance = params[15];
+      refine_freq = params[16];
+      report_diffusion = params[17];
+      error_tol = params[18];
+      num_tsteps = params[19];
+      stencil = params[20];
+      report_perf = params[21];
+      plot_freq = params[22];
+      num_objects = params[23];
+      checksum_freq = params[24];
+      stages_per_ts = params[25];
+      lb_opt = params[26];
+      block_change = params[27];
+      code = params[28];
+      permute = params[29];
+      nonblocking = params[30];
+      refine_ghost = params[31];
+      use_time = params[32];
+      end_time = params[33];
+      change_dir = params[34];
+      group_blocks = params[35];
+      limit_move = params[36];
+      send_faces = params[37];
 
       objects = (object *) ma_malloc(num_objects*sizeof(object),
                                      __FILE__, __LINE__);
@@ -310,6 +314,8 @@ int main(int argc, char** argv)
 
    deallocate();
 
+   fflush(NULL);
+
    MPI_Barrier(MPI_COMM_WORLD);
 
    MPI_Finalize();
@@ -338,9 +344,6 @@ void print_help_message(void)
    printf("--block_change - (>= 0) number of levels a block can change in a timestep\n");
    printf("--uniform_refine - if 1, then grid is uniformly refined\n");
    printf("--refine_freq - frequency (in timesteps) of checking for refinement\n");
-   printf("--target_active - (>= 0) target number of blocks per core, none if 0\n");
-   printf("--target_max - (>= 0) max number of blocks per core, none if 0\n");
-   printf("--target_min - (>= 0) min number of blocks per core, none if 0\n");
    printf("--inbalance - percentage inbalance to trigger inbalance\n");
    printf("--lb_opt - load balancing - 0 = none, 1 = each refine, 2 = each refine phase\n");
    printf("--num_vars - number of variables (> 0)\n");
@@ -359,6 +362,10 @@ void print_help_message(void)
    printf("--permute - altenates directions in communication\n");
    printf("--blocking_send - use blocking sends instead of nonblocking\n");
    printf("--refine_ghost - use full extent of block (including ghosts) to determine if block is refined\n");
+   printf("--change_dir - allow the RCB algorithm to change the directions of the cuts each load balance step\n");
+   printf("--group_blocks - change the RCB algorithm so that a group of blocks with the same center all get put onto the same side of a cut\n");
+   printf("--limit_move - limit the number of blocks that can be moved during load balance (number that is a percentage of the total number of blocks)\n");
+   printf("--send_faces - send each face individually instead of packing all faces going to a rank together\n");
    printf("--num_objects - (>= 0) number of objects to cause refinement\n");
    printf("--object - type, position, movement, size, size rate of change\n");
 
@@ -626,28 +633,6 @@ int check_input(void)
    }
    if (((z_block_size/2)*2) != z_block_size) {
       printf("block size in z direction must be even\n");
-      error = 1;
-   }
-   if (target_active && target_max) {
-      printf("Only one of target_active and target_max can be used\n");
-      error = 1;
-   }
-   if (target_active && target_min) {
-      printf("Only one of target_active and target_min can be used\n");
-      error = 1;
-   }
-   if (target_active < 0 || target_active > max_num_blocks) {
-      printf("illegal value for target_active\n");
-      error = 1;
-   }
-   if (target_max < 0 || target_max > max_num_blocks ||
-       target_max < target_active) {
-      printf("illegal value for target_max\n");
-      error = 1;
-   }
-   if (target_min < 0 || target_min > max_num_blocks ||
-       target_min > target_active || target_min > target_max) {
-      printf("illegal value for target_min\n");
       error = 1;
    }
    if (num_refine < 0) {

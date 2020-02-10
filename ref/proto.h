@@ -117,11 +117,6 @@ void redistribute_blocks(double *, double *, double *, double *, int *, int);
 // stencil.c
 void stencil_driver(int, int);
 
-// target.c
-int reduce_blocks();
-void add_blocks();
-void zero_refine(void);
-
 // util.c
 double timer(void);
 void *ma_malloc(size_t, char *, int);

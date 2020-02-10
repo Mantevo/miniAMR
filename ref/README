@@ -112,18 +112,6 @@ The list of arguments and their defaults is as follows:
       This determines the frequency (in timesteps) between checking if
       refinement is needed.  The default is every 5 timesteps.
 
-   --target_active - target number of blocks per processor
-   --target_max - max number of blocks per processor
-   --target_min - min number of blocks per processor
-      These allow the user to control the number of blocks per processor.
-      If these are zero, then no adjustment is made.  If target_active is
-      greater than zero than the code will adjust the number of blocks to
-      that target after the refinement step.  If target_max is greater than
-      zero then the number of blocks will be reduced if it exceeds this
-      number.  Likewise, if target_min is greater than zero, than the number
-      of blocks will be raised if there is less than that number after the
-      refinement step.  The default for all of these is zero.
-
    --inbalance - percentage inbalance to trigger inbalance
       This parameter allows the user to set a percentage threshold above
       which the load will be balanced amoung the processors.  The value
@@ -225,6 +213,24 @@ The list of arguments and their defaults is as follows:
       that block will be refined.  Specifying this flag will allow those
       ghost cells to be used.
 
+   --send_faces - (no argument)
+      The default is to bundle the data from faces that is going to be sent
+      from one rank to another in a specific direction.  This option sends
+      the data from each face seperately.
+
+   --change_dir - (no argument)
+   --group_blocks - (no argument)
+   --limit_move - (0 .. 100)
+      These three options allow the code to be closer to the behavior of
+      codes that we are studying.  The change_dir option allows the RCB
+      algorithm to change the directions of the cuts at each refinement
+      step instead of being determined by the first refinement step.  The
+      group_blocks option causes all the blocks whose centers lie on a
+      cut line in the RCB algorithm to end up on the same side of the line
+      instead of being divided.  The limit_move option causes the number
+      of blocks that are moved during a load balance step to be limited
+      to a percentage of the number of blocks.
+
    --num_objects - (>= 0) number of objects to cause refinement
       The number of objects on which refinement is based.  Default is zero.
 
@@ -291,7 +297,6 @@ mpirun -np 16 miniAMR.x --num_refine 4 --max_blocks 4000 --init_x 1 --init_y 1 -
    rcb.c           Load balancing routines
    refine.c        Routines to direct refinement step
    stencil.c       Perform stencil calculations
-   target.c        Add/subtract blocks to reach a target number
    util.c          Utility routines for timing and allocation
 
 -------------------

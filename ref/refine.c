@@ -24,6 +24,7 @@
 //
 // ************************************************************************
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <mpi.h>
 
@@ -174,31 +175,6 @@ void refine(int ts)
    timer_cb_mv += tm;
    timer_cb_un += tu;
 
-   if (target_active || target_max || target_min) {
-      if (!my_pe) {
-         for (j = 0; j <= num_refine; j++)
-            printf("Number of blocks at level %d before target %d is %ld\n",
-                   j, ts, num_blocks[j]);
-         printf("\n");
-      }
-      t2 = timer();
-      global_active = num_blocks[0];
-      for (i = 1; i <= num_refine; i++)
-         global_active += num_blocks[i];
-      // Will not be able to get to target in all cases, but can get to
-      // a range of target +- 3 since can add or subtract in units of
-      // 7 blocks.
-      if ((target_active && global_active > num_pes*target_active + 3) ||
-          (target_max && global_active > num_pes*target_max))
-         nm_t += reduce_blocks();
-      else if ((target_active && global_active < num_pes*target_active - 3) ||
-               (target_min && global_active < num_pes*target_min))
-         add_blocks();
-      check_buff_size();
-      t5 = timer();
-      timer_target_all += t5 - t2;
-      t4 += t5 - t2;
-   }
    t2 = timer();
    if (num_active > local_max_b)
       local_max_b = num_active;
@@ -230,10 +206,21 @@ void refine(int ts)
           (max_b > (min_b + 1) && ratio > ((double) inbalance/100.0))) {
          nlbs++;
          t2 = timer();
+         if (!my_pe && report_perf & 8) printf("before ave %d min %d max %d\n",
+                                               sum_b/num_pes, min_b, max_b);
          load_balance();
          t5 = timer();
          timer_lb_all += t5 - t2;
          t4 += t5 - t2;
+
+         MPI_Allreduce(&num_active, &min_b, 1, MPI_INT, MPI_MIN,
+                       MPI_COMM_WORLD);
+         MPI_Allreduce(&num_active, &max_b, 1, MPI_INT, MPI_MAX,
+                       MPI_COMM_WORLD);
+         MPI_Allreduce(&num_active, &sum_b, 1, MPI_INT, MPI_SUM,
+                       MPI_COMM_WORLD);
+         if (!my_pe && report_perf & 8) printf("after ave %d min %d max %d\n",
+                                               sum_b/num_pes, min_b, max_b);
 
          t2 = timer();
          MPI_Allreduce(local_num_blocks, num_blocks, (num_refine+1),
@@ -285,9 +272,9 @@ void refine(int ts)
       num_comm_u_max = nc_u;
    if (nc_u < num_comm_u_min)
       num_comm_u_min = nc_u;
-   MPI_Allreduce(nc, ncn, 5, MPI_INTEGER, MPI_MIN, MPI_COMM_WORLD);
-   MPI_Allreduce(nc, ncx, 5, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD);
-   MPI_Allreduce(nc, nca, 5, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(nc, ncn, 5, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+   MPI_Allreduce(nc, ncx, 5, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+   MPI_Allreduce(nc, nca, 5, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
    if (!my_pe && report_perf & 8) {
       printf("comm partners x ave %6.2lf min %d max %d\n",
              ((double) nca[0]/(double) num_pes), ncn[0], ncx[0]);

@@ -47,9 +47,11 @@ void driver(void)
 
    t1 = timer();
 
+   first = 1;
    if (num_refine || uniform_refine) refine(0);
    t2 = timer();
    timer_refine_all += t2 - t1;
+   first = 0;
 
    if (plot_freq)
       plot(0);
@@ -60,6 +62,8 @@ void driver(void)
 
    if (use_time) delta = calc_time_step();
    for (sim_time = 0.0, done = comm_stage =calc_stage=0, ts = 1; !done; ts++) {
+      if (!my_pe && report_perf & 8)
+         printf("Timestep %d time %lf delta %lf\n", ts, sim_time, delta);
       for (stage=0; stage < stages_per_ts; stage++,comm_stage++,calc_stage++) {
          total_blocks += global_active;
          if (global_active < nb_min)
@@ -116,10 +120,11 @@ void driver(void)
          delta = calc_time_step();
          if (sim_time >= end_time)
             done = 1;
+         else
+            sim_time += delta;
       } else
          if (ts >= num_tsteps)
             done = 1;
-      sim_time += delta;
    }
 
    end_time = sim_time;

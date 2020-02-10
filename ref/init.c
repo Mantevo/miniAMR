@@ -24,6 +24,7 @@
 //
 // ************************************************************************
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <mpi.h>
@@ -134,20 +135,27 @@ void init(void)
                                   __FILE__, __LINE__);
    me = (int *) ma_malloc((nfac+1)*sizeof(int), __FILE__, __LINE__);
    np = (int *) ma_malloc((nfac+1)*sizeof(int), __FILE__, __LINE__);
+   dirs = (int *) ma_malloc(nfac*sizeof(int), __FILE__, __LINE__);
    comms[0] = MPI_COMM_WORLD;
    me[0] = my_pe;
    np[0] = num_pes;
    // initialize
+   if (!my_pe && report_perf & 8) printf("Init dirs ");
    for (n = 0, i = nfac; i > 0; i--, n++) {
       fact = fac[i-1];
       dir = find_dir(fact, npx1, npy1, npz1);
-      if (dir == 0)
+      if (dir == 0) {
          npx1 /= fact;
-      else
-         if (dir == 1)
+         if (!my_pe && report_perf & 8) printf("x ");
+      } else
+         if (dir == 1) {
             npy1 /= fact;
-         else
+            if (!my_pe && report_perf & 8) printf("y ");
+         } else {
             npz1 /= fact;
+            if (!my_pe && report_perf & 8) printf("z ");
+         }
+      dirs[n] = dir;
       size /= fact;
       set = me[n]/size;
       MPI_Comm_split(comms[n], set, me[n], &comms[n+1]);
@@ -165,6 +173,7 @@ void init(void)
          }
       pes *= fact;
    }
+   if (!my_pe && report_perf & 8) printf("\n");
    for (i = 0; i < num_pes; i++)
       pos1[pos[0][i]][pos[1][i]][pos[2][i]] = i;
 

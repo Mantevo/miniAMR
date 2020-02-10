@@ -41,7 +41,7 @@
 // to exchange their ghost values.
 void comm(int start, int num_comm, int stage)
 {
-   int i, j, k, l, m, n, dir, o, in, which, offset, type;
+   int i, j, k, l, m, n, dir, o, in, which, offset, type, size, num_mesg;
    int permutations[6][3] = { {0, 1, 2}, {1, 2, 0}, {2, 0, 1},
                               {0, 2, 1}, {1, 0, 2}, {2, 1, 0} };
    double t1, t2, t3, t4;
@@ -55,13 +55,33 @@ void comm(int start, int num_comm, int stage)
          dir = o;
       type = dir;
       t1 = timer();
-      for (i = 0; i < num_comm_partners[dir]; i++) {
-         MPI_Irecv(&recv_buff[comm_recv_off[dir][comm_index[dir][i]]],
-                   recv_size[dir][i], MPI_DOUBLE,
-                   comm_partner[dir][i], type, MPI_COMM_WORLD, &request[i]);
-         counter_halo_recv[dir]++;
-         size_mesg_recv[dir] += (double) recv_size[dir][i]*sizeof(double);
-      }
+      for (num_mesg = i = 0; i < num_comm_partners[dir]; i++)
+         if (send_faces)
+            for (n = 0; n < comm_num[dir][i]; n++, num_mesg++) {
+               if ((j = comm_face_case[dir][comm_index[dir][i]+n]) >= 10)
+                  j -= 10;
+               if (j == 0)
+                  size = comm_vars*msg_len[dir][0];
+               else if (j == 1)
+                  size = comm_vars*msg_len[dir][1];
+               else if (j < 6)
+                  size = comm_vars*msg_len[dir][3];
+               else
+                  size = comm_vars*msg_len[dir][2];
+               MPI_Irecv(&recv_buff[comm_recv_off[dir][comm_index[dir][i]+n]],
+                         size, MPI_DOUBLE, comm_partner[dir][i], n,
+                         MPI_COMM_WORLD, &request[num_mesg]);
+               counter_halo_recv[dir]++;
+               size_mesg_recv[dir] += (double) size*sizeof(double);
+            }
+         else {
+            MPI_Irecv(&recv_buff[comm_recv_off[dir][comm_index[dir][i]]],
+                      recv_size[dir][i], MPI_DOUBLE,
+                      comm_partner[dir][i], type, MPI_COMM_WORLD, &request[i]);
+            counter_halo_recv[dir]++;
+            size_mesg_recv[dir] += (double) recv_size[dir][i]*sizeof(double);
+            num_mesg++;
+         }
       timer_comm_recv[dir] += timer() - t1;
 
 /**** the send and recv list can be same if kept ordered (length can be diff)
@@ -72,31 +92,69 @@ void comm(int start, int num_comm, int stage)
         6-9 quarter -> whole w/ number indicating which quarter (matters send)
         + 10 for E, N, U
 **** one large send buffer -- can pack and send for a neighbor and reuse */
-      for (i = 0; i < num_comm_partners[dir]; i++) {
-         t2 = timer();
-         for (n = 0; n < comm_num[dir][i]; n++) {
-            offset = comm_send_off[dir][comm_index[dir][i]+n];
-            if (!nonblocking)
-               offset -= comm_send_off[dir][comm_index[dir][i]];
-            pack_face(&send_buff[offset], comm_block[dir][comm_index[dir][i]+n],
-                      comm_face_case[dir][comm_index[dir][i]+n], dir,
-                      start, num_comm);
+      if (send_faces)
+         for (k = i = 0; i < num_comm_partners[dir]; i++)
+            for (n = 0; n < comm_num[dir][i]; n++, k++) {
+               t2 = timer();
+               if (nonblocking)
+                  offset = comm_send_off[dir][comm_index[dir][i]+n];
+               else
+                  offset = 0;
+               pack_face(&send_buff[offset],
+                         comm_block[dir][comm_index[dir][i]+n],
+                         comm_face_case[dir][comm_index[dir][i]+n], dir,
+                         start, num_comm);
+               counter_face_send[dir]++;
+               t3 = timer();
+               if ((j = comm_face_case[dir][comm_index[dir][i]+n]) >= 10)
+                  j -= 10;
+               if (j == 0)
+                  size = comm_vars*msg_len[dir][0];
+               else if (j == 1)
+                  size = comm_vars*msg_len[dir][1];
+               else if (j < 6)
+                  size = comm_vars*msg_len[dir][2];
+               else
+                  size = comm_vars*msg_len[dir][3];
+               if (nonblocking)
+                  MPI_Isend(&send_buff[offset], size, MPI_DOUBLE,
+                            comm_partner[dir][i], n, MPI_COMM_WORLD,&s_req[k]);
+               else
+                  MPI_Send(send_buff, size, MPI_DOUBLE, comm_partner[dir][i],n,
+                           MPI_COMM_WORLD);
+               counter_halo_send[dir]++;
+               size_mesg_send[dir] += (double) size*sizeof(double);
+               t4 = timer();
+               timer_comm_pack[dir] += t3 - t2;
+               timer_comm_send[dir] += t4 - t3;
+            }
+      else
+         for (i = 0; i < num_comm_partners[dir]; i++) {
+            t2 = timer();
+            for (n = 0; n < comm_num[dir][i]; n++) {
+               offset = comm_send_off[dir][comm_index[dir][i]+n];
+               if (!nonblocking)
+                  offset -= comm_send_off[dir][comm_index[dir][i]];
+               pack_face(&send_buff[offset],
+                         comm_block[dir][comm_index[dir][i]+n],
+                         comm_face_case[dir][comm_index[dir][i]+n], dir,
+                         start, num_comm);
+            }
+            counter_face_send[dir] += comm_num[dir][i];
+            t3 = timer();
+            if (nonblocking)
+               MPI_Isend(&send_buff[comm_send_off[dir][comm_index[dir][i]]],
+                         send_size[dir][i], MPI_DOUBLE, comm_partner[dir][i],
+                         type, MPI_COMM_WORLD, &s_req[i]);
+            else
+               MPI_Send(send_buff, send_size[dir][i], MPI_DOUBLE,
+                        comm_partner[dir][i], type, MPI_COMM_WORLD);
+            counter_halo_send[dir]++;
+            size_mesg_send[dir] += (double) send_size[dir][i]*sizeof(double);
+            t4 = timer();
+            timer_comm_pack[dir] += t3 - t2;
+            timer_comm_send[dir] += t4 - t3;
          }
-         counter_face_send[dir] += comm_num[dir][i];
-         t3 = timer();
-         if (nonblocking)
-            MPI_Isend(&send_buff[comm_send_off[dir][comm_index[dir][i]]],
-                      send_size[dir][i], MPI_DOUBLE, comm_partner[dir][i],
-                      type, MPI_COMM_WORLD, &s_req[i]);
-         else
-            MPI_Send(send_buff, send_size[dir][i], MPI_DOUBLE,
-                     comm_partner[dir][i], type, MPI_COMM_WORLD);
-         counter_halo_send[dir]++;
-         size_mesg_send[dir] += (double) send_size[dir][i]*sizeof(double);
-         t4 = timer();
-         timer_comm_pack[dir] += t3 - t2;
-         timer_comm_send[dir] += t4 - t3;
-      }
 
       // While values are being sent over the mesh, go through and direct
       // blocks to exchange ghost values with other blocks that are on
@@ -144,16 +202,29 @@ void comm(int start, int num_comm, int stage)
          }
       }
 
-      for (i = 0; i < num_comm_partners[dir]; i++) {
+      for (i = 0; i < num_mesg; i++) {
          t2 = timer();
-         MPI_Waitany(num_comm_partners[dir], request, &which, &status);
+         MPI_Waitany(num_mesg, request, &which, &status);
          t3 = timer();
-         for (n = 0; n < comm_num[dir][which]; n++)
-          unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][which]+n]],
-                      comm_block[dir][comm_index[dir][which]+n],
-                      comm_face_case[dir][comm_index[dir][which]+n],
-                      dir, start, num_comm);
-         counter_face_recv[dir] += comm_num[dir][which];
+         if (send_faces) {
+            for (k = j = 0; j < num_comm_partners[dir]; k += comm_num[dir][j++])
+               if (which <= (k + comm_num[dir][j])) {
+                 l = which - k;
+                 unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][j]+l]],
+                             comm_block[dir][comm_index[dir][j]+l],
+                             comm_face_case[dir][comm_index[dir][j]+l],
+                             dir, start, num_comm);
+                 break;
+               }
+            counter_face_recv[dir]++;
+         } else {
+            for (n = 0; n < comm_num[dir][which]; n++)
+               unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][which]+n]],
+                           comm_block[dir][comm_index[dir][which]+n],
+                           comm_face_case[dir][comm_index[dir][which]+n],
+                           dir, start, num_comm);
+            counter_face_recv[dir] += comm_num[dir][which];
+         }
          t4 = timer();
          timer_comm_wait[dir] += t3 - t2;
          timer_comm_unpack[dir] += t4 - t3;
@@ -161,8 +232,8 @@ void comm(int start, int num_comm, int stage)
 
       if (nonblocking) {
          t2 = timer();
-         for (i = 0; i < num_comm_partners[dir]; i++)
-            MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
+         for (i = 0; i < num_mesg; i++)
+            MPI_Waitany(num_mesg, s_req, &which, &status);
          t3 = timer();
          timer_comm_wait[dir] += t3 - t2;
       }
