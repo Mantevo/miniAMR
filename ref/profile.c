@@ -816,25 +816,6 @@ void profile(void)
                 average[126], stddev[126], minimum[126], maximum[126]);
          fprintf(fp, "           unpack blocks    : %lf %lf %lf %lf\n",
                 average[127], stddev[127], minimum[127], maximum[127]);
-            fprintf(fp, "          reduce blocks     : %lf %lf %lf %lf\n",
-                average[53], stddev[53], minimum[53], maximum[53]);
-            fprintf(fp, "            decide and comm : %lf %lf %lf %lf\n",
-                average[54], stddev[54], minimum[54], maximum[54]);
-            fprintf(fp, "            pack blocks     : %lf %lf %lf %lf\n",
-                average[55], stddev[55], minimum[55], maximum[55]);
-            fprintf(fp, "            move blocks     : %lf %lf %lf %lf\n",
-                average[56], stddev[56], minimum[56], maximum[56]);
-            fprintf(fp, "            unpack blocks   : %lf %lf %lf %lf\n",
-                average[57], stddev[57], minimum[57], maximum[57]);
-            fprintf(fp, "            coarsen blocks  : %lf %lf %lf %lf\n",
-                average[58], stddev[58], minimum[58], maximum[58]);
-            fprintf(fp, "          add blocks        : %lf %lf %lf %lf\n",
-                average[59], stddev[59], minimum[59], maximum[59]);
-            fprintf(fp, "            decide and comm : %lf %lf %lf %lf\n",
-                average[60], stddev[60], minimum[60], maximum[60]);
-            fprintf(fp, "            split blocks    : %lf %lf %lf %lf\n",
-                average[61], stddev[61], minimum[61], maximum[61]);
-         }
          fprintf(fp, "        total load balance  : %lf %lf %lf %lf\n",
                 average[62], stddev[62], minimum[62], maximum[62]);
          fprintf(fp, "           sort             : %lf %lf %lf %lf\n",
