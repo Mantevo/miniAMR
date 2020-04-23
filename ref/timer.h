@@ -24,10 +24,10 @@
 //
 // ************************************************************************
 
-double average[146];
-double stddev[143];
-double minimum[143];
-double maximum[143];
+double average[135];
+double stddev[132];
+double minimum[132];
+double maximum[132];
 
 double timer_all;
 
@@ -89,7 +89,6 @@ int num_reformed;
 int num_moved_all;
 int num_moved_lb;
 int num_moved_rs;
-int num_moved_reduce;
 int num_moved_coarsen;
 int num_comm_x;
 int num_comm_y;

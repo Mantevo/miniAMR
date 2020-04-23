@@ -200,8 +200,13 @@ void init(void)
       max_mesh_size = mesh_size[2];
    if ((num_pes+1) > max_mesh_size)
       max_mesh_size = num_pes + 1;
-   bin  = (int *) ma_malloc(max_mesh_size*sizeof(int), __FILE__, __LINE__);
-   gbin = (int *) ma_malloc(max_mesh_size*sizeof(int), __FILE__, __LINE__);
+   if (use_rcb) {
+      bin  = (int *) ma_malloc(max_mesh_size*sizeof(int), __FILE__, __LINE__);
+      gbin = (int *) ma_malloc(max_mesh_size*sizeof(int), __FILE__, __LINE__);
+   } else {
+      bin  = (int *) ma_malloc(global_active*sizeof(int), __FILE__, __LINE__);
+      gbin = (int *) ma_malloc(global_active*sizeof(int), __FILE__, __LINE__);
+   }
    if (stencil == 7)
       f = 0;
    else
@@ -217,6 +222,7 @@ void init(void)
                         bp = &blocks[o];
                         bp->level = 0;
                         bp->number = n;
+                        bp->num_prime = n*p8[num_refine];
                         bp->parent = -1;
                         bp->parent_node = my_pe;
                         bp->cen[0] = i1*size + size/2;

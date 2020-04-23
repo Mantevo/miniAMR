@@ -79,7 +79,7 @@ void driver(void)
             comm(start, number, comm_stage);
             t4 = timer();
             timer_comm_all += t4 - t3;
-            for (var = start; var < (start+number); var ++) {
+            for (var = start; var < (start+number); var++) {
                stencil_driver(var, calc_stage);
                t3 = timer();
                timer_calc_all += t3 - t4;
@@ -120,11 +120,12 @@ void driver(void)
          delta = calc_time_step();
          if (sim_time >= end_time)
             done = 1;
-         else
-            sim_time += delta;
       } else
          if (ts >= num_tsteps)
             done = 1;
+
+      if (!done)
+         sim_time += delta;
    }
 
    end_time = sim_time;
@@ -160,7 +161,7 @@ double calc_time_step(void)
          }
       if (done)
          break;
-      for (done = dir = 0; dir < 3; dir++) {
+      for (dir = 0; dir < 3; dir++) {
          tmp = (fabs(op->move[dir]) + fabs(op->inc[dir]))*inv_cell_size[dir];
          if (tmp > delta)
             delta = tmp;

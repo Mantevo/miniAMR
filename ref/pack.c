@@ -47,7 +47,8 @@ void pack_block(int n)
       send_ll[1] = (long long) (-2 - bp->parent);
    else
       send_ll[1] = (long long) bp->parent;
-   l = 4;
+   send_ll[2] = (long long) bp->num_prime;
+   l = 6;
    send_int[l++] = bp->level;
    send_int[l++] = bp->refine;
    send_int[l++] = bp->parent_node;
@@ -81,7 +82,8 @@ void unpack_block(int n)
 
    bp->number = (num_sz) recv_ll[0];
    bp->parent = (num_sz) recv_ll[1];
-   l = 4;
+   bp->num_prime = (num_sz) recv_ll[2];
+   l = 6;
    bp->level = recv_int[l++];
    bp->refine = recv_int[l++];
    bp->parent_node = recv_int[l++];

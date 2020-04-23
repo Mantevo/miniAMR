@@ -40,11 +40,11 @@ void profile(void)
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
           total_fp_divs;
    object *op;
-   char *version = "1.5.0";
+   char *version = "1.6.0";
    FILE *fp;
 
    calculate_results();
-   total_fp_ops = average[143] + average[144] + average[145];
+   total_fp_ops = average[132] + average[133] + average[134];
    total_gflops = total_fp_ops/(average[38]*1024.0*1024.0*1024.0);
    gflops_rank = total_gflops/((double) num_pes);
 
@@ -96,6 +96,7 @@ void profile(void)
          fprintf(fp, "refine_freq: %d\n", refine_freq);
          fprintf(fp, "lb_opt: %d\n", lb_opt);
          fprintf(fp, "inbalance: %d\n", inbalance);
+         fprintf(fp, "rcb: %d\n", use_rcb);
          fprintf(fp, "plot_freq: %d\n", plot_freq);
          fprintf(fp, "num_vars: %d\n", num_vars);
          fprintf(fp, "stencil: %d\n", stencil);
@@ -106,9 +107,9 @@ void profile(void)
          fprintf(fp, "total_time_ave: %lf\n", average[0]);
          fprintf(fp, "total_time_min: %lf\n", minimum[0]);
          fprintf(fp, "total_time_max: %lf\n", maximum[0]);
-         fprintf(fp, "memory_used_ave: %lf\n", average[111]);
-         fprintf(fp, "memory_used_min: %lf\n", minimum[111]);
-         fprintf(fp, "memory_used_max: %lf\n", maximum[111]);
+         fprintf(fp, "memory_used_ave: %lf\n", average[112]);
+         fprintf(fp, "memory_used_min: %lf\n", minimum[112]);
+         fprintf(fp, "memory_used_max: %lf\n", maximum[112]);
          fprintf(fp, "compute_time_ave: %lf\n", average[38]);
          fprintf(fp, "compute_time_min: %lf\n", minimum[38]);
          fprintf(fp, "compute_time_max: %lf\n", maximum[38]);
@@ -142,39 +143,39 @@ void profile(void)
          fprintf(fp, "   total_unpack_faces_ave: %lf\n", average[9]);
          fprintf(fp, "   total_unpack_faces_min: %lf\n", minimum[9]);
          fprintf(fp, "   total_unpack_faces_max: %lf\n", maximum[9]);
-         fprintf(fp, "   comm_partners_total: %lf\n", average[131]);
-         fprintf(fp, "   comm_partners_total_min: %lf\n", minimum[136]);
-         fprintf(fp, "   comm_partners_total_max: %lf\n", maximum[141]);
-         fprintf(fp, "   comm_partners_unique: %lf\n", average[132]);
-         fprintf(fp, "   comm_partners_unique_min: %lf\n", minimum[137]);
-         fprintf(fp, "   comm_partners_unique_max: %lf\n", maximum[142]);
-         fprintf(fp, "   total_mess_recv_ave: %lf\n", average[70]);
-         fprintf(fp, "   total_mess_recv_min: %lf\n", minimum[70]);
-         fprintf(fp, "   total_mess_recv_max: %lf\n", maximum[70]);
-         fprintf(fp, "   total_byte_recv_ave: %lf\n", average[68]);
-         fprintf(fp, "   total_byte_recv_min: %lf\n", minimum[68]);
-         fprintf(fp, "   total_byte_recv_max: %lf\n", maximum[68]);
-         fprintf(fp, "   total_face_recv_ave: %lf\n", average[72]);
-         fprintf(fp, "   total_face_recv_min: %lf\n", minimum[72]);
-         fprintf(fp, "   total_face_recv_max: %lf\n", maximum[72]);
-         fprintf(fp, "   total_mess_send_ave: %lf\n", average[71]);
-         fprintf(fp, "   total_mess_send_min: %lf\n", minimum[71]);
-         fprintf(fp, "   total_mess_send_max: %lf\n", maximum[71]);
-         fprintf(fp, "   total_byte_send_ave: %lf\n", average[69]);
-         fprintf(fp, "   total_byte_send_min: %lf\n", minimum[69]);
-         fprintf(fp, "   total_byte_send_max: %lf\n", maximum[69]);
-         fprintf(fp, "   total_face_send_ave: %lf\n", average[73]);
-         fprintf(fp, "   total_face_send_min: %lf\n", minimum[73]);
-         fprintf(fp, "   total_face_send_max: %lf\n", maximum[73]);
-         fprintf(fp, "   total_face_exch_same_ave: %lf\n", average[75]);
-         fprintf(fp, "   total_face_exch_same_min: %lf\n", minimum[75]);
-         fprintf(fp, "   total_face_exch_same_max: %lf\n", maximum[75]);
-         fprintf(fp, "   total_face_exch_diff_ave: %lf\n", average[76]);
-         fprintf(fp, "   total_face_exch_diff_min: %lf\n", minimum[76]);
-         fprintf(fp, "   total_face_exch_diff_max: %lf\n", maximum[76]);
-         fprintf(fp, "   total_face_bc_apply_ave: %lf\n", average[74]);
-         fprintf(fp, "   total_face_bc_apply_min: %lf\n", minimum[74]);
-         fprintf(fp, "   total_face_bc_apply_max: %lf\n", maximum[74]);
+         fprintf(fp, "   comm_partners_total: %lf\n", average[120]);
+         fprintf(fp, "   comm_partners_total_min: %lf\n", minimum[125]);
+         fprintf(fp, "   comm_partners_total_max: %lf\n", maximum[130]);
+         fprintf(fp, "   comm_partners_unique: %lf\n", average[121]);
+         fprintf(fp, "   comm_partners_unique_min: %lf\n", minimum[126]);
+         fprintf(fp, "   comm_partners_unique_max: %lf\n", maximum[131]);
+         fprintf(fp, "   total_mess_recv_ave: %lf\n", average[71]);
+         fprintf(fp, "   total_mess_recv_min: %lf\n", minimum[71]);
+         fprintf(fp, "   total_mess_recv_max: %lf\n", maximum[71]);
+         fprintf(fp, "   total_byte_recv_ave: %lf\n", average[69]);
+         fprintf(fp, "   total_byte_recv_min: %lf\n", minimum[69]);
+         fprintf(fp, "   total_byte_recv_max: %lf\n", maximum[69]);
+         fprintf(fp, "   total_face_recv_ave: %lf\n", average[73]);
+         fprintf(fp, "   total_face_recv_min: %lf\n", minimum[73]);
+         fprintf(fp, "   total_face_recv_max: %lf\n", maximum[73]);
+         fprintf(fp, "   total_mess_send_ave: %lf\n", average[72]);
+         fprintf(fp, "   total_mess_send_min: %lf\n", minimum[72]);
+         fprintf(fp, "   total_mess_send_max: %lf\n", maximum[72]);
+         fprintf(fp, "   total_byte_send_ave: %lf\n", average[70]);
+         fprintf(fp, "   total_byte_send_min: %lf\n", minimum[70]);
+         fprintf(fp, "   total_byte_send_max: %lf\n", maximum[70]);
+         fprintf(fp, "   total_face_send_ave: %lf\n", average[74]);
+         fprintf(fp, "   total_face_send_min: %lf\n", minimum[74]);
+         fprintf(fp, "   total_face_send_max: %lf\n", maximum[74]);
+         fprintf(fp, "   total_face_exch_same_ave: %lf\n", average[76]);
+         fprintf(fp, "   total_face_exch_same_min: %lf\n", minimum[76]);
+         fprintf(fp, "   total_face_exch_same_max: %lf\n", maximum[76]);
+         fprintf(fp, "   total_face_exch_diff_ave: %lf\n", average[77]);
+         fprintf(fp, "   total_face_exch_diff_min: %lf\n", minimum[77]);
+         fprintf(fp, "   total_face_exch_diff_max: %lf\n", maximum[77]);
+         fprintf(fp, "   total_face_bc_apply_ave: %lf\n", average[75]);
+         fprintf(fp, "   total_face_bc_apply_min: %lf\n", minimum[75]);
+         fprintf(fp, "   total_face_bc_apply_max: %lf\n", maximum[75]);
 
          fprintf(fp, "   x_comm_ave: %lf\n", average[10]);
          fprintf(fp, "   x_comm_min: %lf\n", minimum[10]);
@@ -203,36 +204,36 @@ void profile(void)
          fprintf(fp, "      x_unpack_faces_ave: %lf\n", average[18]);
          fprintf(fp, "      x_unpack_faces_min: %lf\n", minimum[18]);
          fprintf(fp, "      x_unpack_faces_max: %lf\n", maximum[18]);
-         fprintf(fp, "      x_comm_partners: %lf\n", average[128]);
-         fprintf(fp, "      x_comm_partners_min: %d\n", minimum[133]);
-         fprintf(fp, "      x_comm_partners_max: %d\n", maximum[138]);
-         fprintf(fp, "      x_mess_recv_ave: %lf\n", average[79]);
-         fprintf(fp, "      x_mess_recv_min: %lf\n", minimum[79]);
-         fprintf(fp, "      x_mess_recv_max: %lf\n", maximum[79]);
-         fprintf(fp, "      x_byte_recv_ave: %lf\n", average[77]);
-         fprintf(fp, "      x_byte_recv_min: %lf\n", minimum[77]);
-         fprintf(fp, "      x_byte_recv_max: %lf\n", maximum[77]);
-         fprintf(fp, "      x_face_recv_ave: %lf\n", average[81]);
-         fprintf(fp, "      x_face_recv_min: %lf\n", minimum[81]);
-         fprintf(fp, "      x_face_recv_max: %lf\n", maximum[81]);
-         fprintf(fp, "      x_mess_send_ave: %lf\n", average[80]);
-         fprintf(fp, "      x_mess_send_min: %lf\n", minimum[80]);
-         fprintf(fp, "      x_mess_send_max: %lf\n", maximum[80]);
-         fprintf(fp, "      x_byte_send_ave: %lf\n", average[78]);
-         fprintf(fp, "      x_byte_send_min: %lf\n", minimum[78]);
-         fprintf(fp, "      x_byte_send_max: %lf\n", maximum[78]);
-         fprintf(fp, "      x_face_send_ave: %lf\n", average[82]);
-         fprintf(fp, "      x_face_send_min: %lf\n", minimum[82]);
-         fprintf(fp, "      x_face_send_max: %lf\n", maximum[82]);
-         fprintf(fp, "      x_face_exch_same_ave: %lf\n", average[84]);
-         fprintf(fp, "      x_face_exch_same_min: %lf\n", minimum[84]);
-         fprintf(fp, "      x_face_exch_same_max: %lf\n", maximum[84]);
-         fprintf(fp, "      x_face_exch_diff_ave: %lf\n", average[85]);
-         fprintf(fp, "      x_face_exch_diff_min: %lf\n", minimum[85]);
-         fprintf(fp, "      x_face_exch_diff_max: %lf\n", maximum[85]);
-         fprintf(fp, "      x_face_bc_apply_ave: %lf\n", average[83]);
-         fprintf(fp, "      x_face_bc_apply_min: %lf\n", minimum[83]);
-         fprintf(fp, "      x_face_bc_apply_max: %lf\n", maximum[83]);
+         fprintf(fp, "      x_comm_partners: %lf\n", average[117]);
+         fprintf(fp, "      x_comm_partners_min: %d\n", minimum[122]);
+         fprintf(fp, "      x_comm_partners_max: %d\n", maximum[127]);
+         fprintf(fp, "      x_mess_recv_ave: %lf\n", average[80]);
+         fprintf(fp, "      x_mess_recv_min: %lf\n", minimum[80]);
+         fprintf(fp, "      x_mess_recv_max: %lf\n", maximum[80]);
+         fprintf(fp, "      x_byte_recv_ave: %lf\n", average[78]);
+         fprintf(fp, "      x_byte_recv_min: %lf\n", minimum[78]);
+         fprintf(fp, "      x_byte_recv_max: %lf\n", maximum[78]);
+         fprintf(fp, "      x_face_recv_ave: %lf\n", average[82]);
+         fprintf(fp, "      x_face_recv_min: %lf\n", minimum[82]);
+         fprintf(fp, "      x_face_recv_max: %lf\n", maximum[82]);
+         fprintf(fp, "      x_mess_send_ave: %lf\n", average[81]);
+         fprintf(fp, "      x_mess_send_min: %lf\n", minimum[81]);
+         fprintf(fp, "      x_mess_send_max: %lf\n", maximum[81]);
+         fprintf(fp, "      x_byte_send_ave: %lf\n", average[79]);
+         fprintf(fp, "      x_byte_send_min: %lf\n", minimum[79]);
+         fprintf(fp, "      x_byte_send_max: %lf\n", maximum[79]);
+         fprintf(fp, "      x_face_send_ave: %lf\n", average[83]);
+         fprintf(fp, "      x_face_send_min: %lf\n", minimum[83]);
+         fprintf(fp, "      x_face_send_max: %lf\n", maximum[83]);
+         fprintf(fp, "      x_face_exch_same_ave: %lf\n", average[85]);
+         fprintf(fp, "      x_face_exch_same_min: %lf\n", minimum[85]);
+         fprintf(fp, "      x_face_exch_same_max: %lf\n", maximum[85]);
+         fprintf(fp, "      x_face_exch_diff_ave: %lf\n", average[86]);
+         fprintf(fp, "      x_face_exch_diff_min: %lf\n", minimum[86]);
+         fprintf(fp, "      x_face_exch_diff_max: %lf\n", maximum[86]);
+         fprintf(fp, "      x_face_bc_apply_ave: %lf\n", average[84]);
+         fprintf(fp, "      x_face_bc_apply_min: %lf\n", minimum[84]);
+         fprintf(fp, "      x_face_bc_apply_max: %lf\n", maximum[84]);
 
          fprintf(fp, "   y_comm_ave: %lf\n", average[19]);
          fprintf(fp, "   y_comm_min: %lf\n", minimum[19]);
@@ -261,36 +262,36 @@ void profile(void)
          fprintf(fp, "      y_unpack_faces_ave: %lf\n", average[27]);
          fprintf(fp, "      y_unpack_faces_min: %lf\n", minimum[27]);
          fprintf(fp, "      y_unpack_faces_max: %lf\n", maximum[27]);
-         fprintf(fp, "      y_comm_partners: %lf\n", average[129]);
-         fprintf(fp, "      y_comm_partners_min: %d\n", minimum[134]);
-         fprintf(fp, "      y_comm_partners_max: %d\n", maximum[139]);
-         fprintf(fp, "      y_mess_recv_ave: %lf\n", average[88]);
-         fprintf(fp, "      y_mess_recv_min: %lf\n", minimum[88]);
-         fprintf(fp, "      y_mess_recv_max: %lf\n", maximum[88]);
-         fprintf(fp, "      y_byte_recv_ave: %lf\n", average[86]);
-         fprintf(fp, "      y_byte_recv_min: %lf\n", minimum[86]);
-         fprintf(fp, "      y_byte_recv_max: %lf\n", maximum[86]);
-         fprintf(fp, "      y_face_recv_ave: %lf\n", average[90]);
-         fprintf(fp, "      y_face_recv_min: %lf\n", minimum[90]);
-         fprintf(fp, "      y_face_recv_max: %lf\n", maximum[90]);
-         fprintf(fp, "      y_mess_send_ave: %lf\n", average[89]);
-         fprintf(fp, "      y_mess_send_min: %lf\n", minimum[89]);
-         fprintf(fp, "      y_mess_send_max: %lf\n", maximum[89]);
-         fprintf(fp, "      y_byte_send_ave: %lf\n", average[87]);
-         fprintf(fp, "      y_byte_send_min: %lf\n", minimum[87]);
-         fprintf(fp, "      y_byte_send_max: %lf\n", maximum[87]);
-         fprintf(fp, "      y_face_send_ave: %lf\n", average[91]);
-         fprintf(fp, "      y_face_send_min: %lf\n", minimum[91]);
-         fprintf(fp, "      y_face_send_max: %lf\n", maximum[91]);
-         fprintf(fp, "      y_face_exch_same_ave: %lf\n", average[93]);
-         fprintf(fp, "      y_face_exch_same_min: %lf\n", minimum[93]);
-         fprintf(fp, "      y_face_exch_same_max: %lf\n", maximum[93]);
-         fprintf(fp, "      y_face_exch_diff_ave: %lf\n", average[94]);
-         fprintf(fp, "      y_face_exch_diff_min: %lf\n", minimum[94]);
-         fprintf(fp, "      y_face_exch_diff_max: %lf\n", maximum[94]);
-         fprintf(fp, "      y_face_bc_apply_ave: %lf\n", average[92]);
-         fprintf(fp, "      y_face_bc_apply_min: %lf\n", minimum[92]);
-         fprintf(fp, "      y_face_bc_apply_max: %lf\n", maximum[92]);
+         fprintf(fp, "      y_comm_partners: %lf\n", average[118]);
+         fprintf(fp, "      y_comm_partners_min: %d\n", minimum[123]);
+         fprintf(fp, "      y_comm_partners_max: %d\n", maximum[128]);
+         fprintf(fp, "      y_mess_recv_ave: %lf\n", average[89]);
+         fprintf(fp, "      y_mess_recv_min: %lf\n", minimum[89]);
+         fprintf(fp, "      y_mess_recv_max: %lf\n", maximum[89]);
+         fprintf(fp, "      y_byte_recv_ave: %lf\n", average[87]);
+         fprintf(fp, "      y_byte_recv_min: %lf\n", minimum[87]);
+         fprintf(fp, "      y_byte_recv_max: %lf\n", maximum[87]);
+         fprintf(fp, "      y_face_recv_ave: %lf\n", average[91]);
+         fprintf(fp, "      y_face_recv_min: %lf\n", minimum[91]);
+         fprintf(fp, "      y_face_recv_max: %lf\n", maximum[91]);
+         fprintf(fp, "      y_mess_send_ave: %lf\n", average[90]);
+         fprintf(fp, "      y_mess_send_min: %lf\n", minimum[90]);
+         fprintf(fp, "      y_mess_send_max: %lf\n", maximum[90]);
+         fprintf(fp, "      y_byte_send_ave: %lf\n", average[88]);
+         fprintf(fp, "      y_byte_send_min: %lf\n", minimum[88]);
+         fprintf(fp, "      y_byte_send_max: %lf\n", maximum[88]);
+         fprintf(fp, "      y_face_send_ave: %lf\n", average[92]);
+         fprintf(fp, "      y_face_send_min: %lf\n", minimum[92]);
+         fprintf(fp, "      y_face_send_max: %lf\n", maximum[92]);
+         fprintf(fp, "      y_face_exch_same_ave: %lf\n", average[94]);
+         fprintf(fp, "      y_face_exch_same_min: %lf\n", minimum[94]);
+         fprintf(fp, "      y_face_exch_same_max: %lf\n", maximum[94]);
+         fprintf(fp, "      y_face_exch_diff_ave: %lf\n", average[95]);
+         fprintf(fp, "      y_face_exch_diff_min: %lf\n", minimum[95]);
+         fprintf(fp, "      y_face_exch_diff_max: %lf\n", maximum[95]);
+         fprintf(fp, "      y_face_bc_apply_ave: %lf\n", average[93]);
+         fprintf(fp, "      y_face_bc_apply_min: %lf\n", minimum[93]);
+         fprintf(fp, "      y_face_bc_apply_max: %lf\n", maximum[93]);
 
          fprintf(fp, "   z_comm_ave: %lf\n", average[28]);
          fprintf(fp, "   z_comm_min: %lf\n", minimum[28]);
@@ -319,36 +320,36 @@ void profile(void)
          fprintf(fp, "      z_unpack_faces_ave: %lf\n", average[36]);
          fprintf(fp, "      z_unpack_faces_min: %lf\n", minimum[36]);
          fprintf(fp, "      z_unpack_faces_max: %lf\n", maximum[36]);
-         fprintf(fp, "      z_comm_partners: %lf\n", average[130]);
-         fprintf(fp, "      z_comm_partners_min: %d\n", minimum[135]);
-         fprintf(fp, "      z_comm_partners_max: %d\n", maximum[140]);
-         fprintf(fp, "      z_mess_recv_ave: %lf\n", average[97]);
-         fprintf(fp, "      z_mess_recv_min: %lf\n", minimum[97]);
-         fprintf(fp, "      z_mess_recv_max: %lf\n", maximum[97]);
-         fprintf(fp, "      z_byte_recv_ave: %lf\n", average[95]);
-         fprintf(fp, "      z_byte_recv_min: %lf\n", minimum[95]);
-         fprintf(fp, "      z_byte_recv_max: %lf\n", maximum[95]);
-         fprintf(fp, "      z_face_recv_ave: %lf\n", average[99]);
-         fprintf(fp, "      z_face_recv_min: %lf\n", minimum[99]);
-         fprintf(fp, "      z_face_recv_max: %lf\n", maximum[99]);
-         fprintf(fp, "      z_mess_send_ave: %lf\n", average[98]);
-         fprintf(fp, "      z_mess_send_min: %lf\n", minimum[98]);
-         fprintf(fp, "      z_mess_send_max: %lf\n", maximum[98]);
-         fprintf(fp, "      z_byte_send_ave: %lf\n", average[96]);
-         fprintf(fp, "      z_byte_send_min: %lf\n", minimum[96]);
-         fprintf(fp, "      z_byte_send_max: %lf\n", maximum[96]);
-         fprintf(fp, "      z_face_send_ave: %lf\n", average[100]);
-         fprintf(fp, "      z_face_send_min: %lf\n", minimum[100]);
-         fprintf(fp, "      z_face_send_max: %lf\n", maximum[100]);
-         fprintf(fp, "      z_face_exch_same_ave: %lf\n", average[102]);
-         fprintf(fp, "      z_face_exch_same_min: %lf\n", minimum[102]);
-         fprintf(fp, "      z_face_exch_same_max: %lf\n", maximum[102]);
-         fprintf(fp, "      z_face_exch_diff_ave: %lf\n", average[103]);
-         fprintf(fp, "      z_face_exch_diff_min: %lf\n", minimum[103]);
-         fprintf(fp, "      z_face_exch_diff_max: %lf\n", maximum[103]);
-         fprintf(fp, "      z_face_bc_apply_ave: %lf\n", average[101]);
-         fprintf(fp, "      z_face_bc_apply_min: %lf\n", minimum[101]);
-         fprintf(fp, "      z_face_bc_apply_max: %lf\n", maximum[101]);
+         fprintf(fp, "      z_comm_partners: %lf\n", average[119]);
+         fprintf(fp, "      z_comm_partners_min: %d\n", minimum[124]);
+         fprintf(fp, "      z_comm_partners_max: %d\n", maximum[129]);
+         fprintf(fp, "      z_mess_recv_ave: %lf\n", average[98]);
+         fprintf(fp, "      z_mess_recv_min: %lf\n", minimum[98]);
+         fprintf(fp, "      z_mess_recv_max: %lf\n", maximum[98]);
+         fprintf(fp, "      z_byte_recv_ave: %lf\n", average[96]);
+         fprintf(fp, "      z_byte_recv_min: %lf\n", minimum[96]);
+         fprintf(fp, "      z_byte_recv_max: %lf\n", maximum[96]);
+         fprintf(fp, "      z_face_recv_ave: %lf\n", average[100]);
+         fprintf(fp, "      z_face_recv_min: %lf\n", minimum[100]);
+         fprintf(fp, "      z_face_recv_max: %lf\n", maximum[100]);
+         fprintf(fp, "      z_mess_send_ave: %lf\n", average[99]);
+         fprintf(fp, "      z_mess_send_min: %lf\n", minimum[99]);
+         fprintf(fp, "      z_mess_send_max: %lf\n", maximum[99]);
+         fprintf(fp, "      z_byte_send_ave: %lf\n", average[97]);
+         fprintf(fp, "      z_byte_send_min: %lf\n", minimum[97]);
+         fprintf(fp, "      z_byte_send_max: %lf\n", maximum[97]);
+         fprintf(fp, "      z_face_send_ave: %lf\n", average[101]);
+         fprintf(fp, "      z_face_send_min: %lf\n", minimum[101]);
+         fprintf(fp, "      z_face_send_max: %lf\n", maximum[101]);
+         fprintf(fp, "      z_face_exch_same_ave: %lf\n", average[103]);
+         fprintf(fp, "      z_face_exch_same_min: %lf\n", minimum[103]);
+         fprintf(fp, "      z_face_exch_same_max: %lf\n", maximum[103]);
+         fprintf(fp, "      z_face_exch_diff_ave: %lf\n", average[104]);
+         fprintf(fp, "      z_face_exch_diff_min: %lf\n", minimum[104]);
+         fprintf(fp, "      z_face_exch_diff_max: %lf\n", maximum[104]);
+         fprintf(fp, "      z_face_bc_apply_ave: %lf\n", average[102]);
+         fprintf(fp, "      z_face_bc_apply_min: %lf\n", minimum[102]);
+         fprintf(fp, "      z_face_bc_apply_max: %lf\n", maximum[102]);
 
          fprintf(fp, "gridsum_time_ave: %lf\n", average[39]);
          fprintf(fp, "gridsum_time_min: %lf\n", minimum[39]);
@@ -367,103 +368,103 @@ void profile(void)
                 ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)));
          fprintf(fp, "   total_blocks_ts_min: %ld\n", (long long) nb_min);
          fprintf(fp, "   total_blocks_ts_max: %ld\n", (long long) nb_max);
-         fprintf(fp, "   blocks_split_ave: %lf\n", average[104]);
-         fprintf(fp, "   blocks_split_min: %lf\n", minimum[104]);
-         fprintf(fp, "   blocks_split_max: %lf\n", maximum[104]);
-         fprintf(fp, "   blocks_reformed_ave: %lf\n", average[105]);
-         fprintf(fp, "   blocks_reformed_min: %lf\n", minimum[105]);
-         fprintf(fp, "   blocks_reformed_max: %lf\n", maximum[105]);
-         fprintf(fp, "   blocks_moved_tot_ave: %lf\n", average[106]);
-         fprintf(fp, "   blocks_moved_tot_min: %lf\n", minimum[106]);
-         fprintf(fp, "   blocks_moved_tot_max: %lf\n", maximum[106]);
-         fprintf(fp, "   blocks_moved_lb_ave: %lf\n", average[107]);
-         fprintf(fp, "   blocks_moved_lb_min: %lf\n", minimum[107]);
-         fprintf(fp, "   blocks_moved_lb_max: %lf\n", maximum[107]);
-         fprintf(fp, "   blocks_moved_redist_ave: %lf\n", average[122]);
-         fprintf(fp, "   blocks_moved_redist_min: %lf\n", minimum[122]);
-         fprintf(fp, "   blocks_moved_redist_max: %lf\n", maximum[122]);
-         fprintf(fp, "   blocks_moved_coarsen_ave: %lf\n", average[109]);
-         fprintf(fp, "   blocks_moved_coarsen_min: %lf\n", minimum[109]);
-         fprintf(fp, "   blocks_moved_coarsen_max: %lf\n", maximum[109]);
+         fprintf(fp, "   blocks_split_ave: %lf\n", average[105]);
+         fprintf(fp, "   blocks_split_min: %lf\n", minimum[105]);
+         fprintf(fp, "   blocks_split_max: %lf\n", maximum[105]);
+         fprintf(fp, "   blocks_reformed_ave: %lf\n", average[106]);
+         fprintf(fp, "   blocks_reformed_min: %lf\n", minimum[106]);
+         fprintf(fp, "   blocks_reformed_max: %lf\n", maximum[106]);
+         fprintf(fp, "   blocks_moved_tot_ave: %lf\n", average[107]);
+         fprintf(fp, "   blocks_moved_tot_min: %lf\n", minimum[107]);
+         fprintf(fp, "   blocks_moved_tot_max: %lf\n", maximum[107]);
+         fprintf(fp, "   blocks_moved_lb_ave: %lf\n", average[108]);
+         fprintf(fp, "   blocks_moved_lb_min: %lf\n", minimum[108]);
+         fprintf(fp, "   blocks_moved_lb_max: %lf\n", maximum[108]);
+         fprintf(fp, "   blocks_moved_redist_ave: %lf\n", average[109]);
+         fprintf(fp, "   blocks_moved_redist_min: %lf\n", minimum[109]);
+         fprintf(fp, "   blocks_moved_redist_max: %lf\n", maximum[109]);
+         fprintf(fp, "   blocks_moved_coarsen_ave: %lf\n", average[110]);
+         fprintf(fp, "   blocks_moved_coarsen_min: %lf\n", minimum[110]);
+         fprintf(fp, "   blocks_moved_coarsen_max: %lf\n", maximum[110]);
          fprintf(fp, "   time_compare_obj_ave: %lf\n", average[43]);
          fprintf(fp, "   time_compare_obj_min: %lf\n", minimum[43]);
          fprintf(fp, "   time_compare_obj_max: %lf\n", maximum[43]);
          fprintf(fp, "   time_mark_refine_ave: %lf\n", average[44]);
          fprintf(fp, "   time_mark_refine_min: %lf\n", minimum[44]);
          fprintf(fp, "   time_mark_refine_max: %lf\n", maximum[44]);
-         fprintf(fp, "   time_comm_block1_ave: %lf\n", average[119]);
-         fprintf(fp, "   time_comm_block1_min: %lf\n", minimum[119]);
-         fprintf(fp, "   time_comm_block1_max: %lf\n", maximum[119]);
+         fprintf(fp, "   time_comm_block1_ave: %lf\n", average[47]);
+         fprintf(fp, "   time_comm_block1_min: %lf\n", minimum[47]);
+         fprintf(fp, "   time_comm_block1_max: %lf\n", maximum[47]);
          fprintf(fp, "   time_split_block_ave: %lf\n", average[46]);
          fprintf(fp, "   time_split_block_min: %lf\n", minimum[46]);
          fprintf(fp, "   time_split_block_max: %lf\n", maximum[46]);
-         fprintf(fp, "   time_comm_block2_ave: %lf\n", average[120]);
-         fprintf(fp, "   time_comm_block2_min: %lf\n", minimum[120]);
-         fprintf(fp, "   time_comm_block2_max: %lf\n", maximum[120]);
-         fprintf(fp, "   time_sync_ave: %lf\n", average[121]);
-         fprintf(fp, "   time_sync_min: %lf\n", minimum[121]);
-         fprintf(fp, "   time_sync_max: %lf\n", maximum[121]);
+         fprintf(fp, "   time_comm_block2_ave: %lf\n", average[48]);
+         fprintf(fp, "   time_comm_block2_min: %lf\n", minimum[48]);
+         fprintf(fp, "   time_comm_block2_max: %lf\n", maximum[48]);
+         fprintf(fp, "   time_sync_ave: %lf\n", average[49]);
+         fprintf(fp, "   time_sync_min: %lf\n", minimum[49]);
+         fprintf(fp, "   time_sync_max: %lf\n", maximum[49]);
          fprintf(fp, "   time_misc_ave: %lf\n", average[45]);
          fprintf(fp, "   time_misc_min: %lf\n", minimum[45]);
          fprintf(fp, "   time_misc_max: %lf\n", maximum[45]);
-         fprintf(fp, "   time_total_coarsen_ave: %lf\n", average[47]);
-         fprintf(fp, "   time_total_coarsen_min: %lf\n", minimum[47]);
-         fprintf(fp, "   time_total_coarsen_max: %lf\n", maximum[47]);
-         fprintf(fp, "      time_coarsen_ave: %lf\n", average[48]);
-         fprintf(fp, "      time_coarsen_min: %lf\n", minimum[48]);
-         fprintf(fp, "      time_coarsen_max: %lf\n", maximum[48]);
-         fprintf(fp, "      time_coarsen_pack_ave: %lf\n", average[49]);
-         fprintf(fp, "      time_coarsen_pack_min: %lf\n", minimum[49]);
-         fprintf(fp, "      time_coarsen_pack_max: %lf\n", maximum[49]);
-         fprintf(fp, "      time_coarsen_move_ave: %lf\n", average[50]);
-         fprintf(fp, "      time_coarsen_move_min: %lf\n", minimum[50]);
-         fprintf(fp, "      time_coarsen_move_max: %lf\n", maximum[50]);
-         fprintf(fp, "      time_coarsen_unpack_ave: %lf\n", average[51]);
-         fprintf(fp, "      time_coarsen_unpack_min: %lf\n", minimum[51]);
-         fprintf(fp, "      time_coarsen_unpack_max: %lf\n", maximum[51]);
-         fprintf(fp, "   time_total_redist_ave: %lf\n", average[123]);
-         fprintf(fp, "   time_total_redist_min: %lf\n", minimum[123]);
-         fprintf(fp, "   time_total_redist_max: %lf\n", maximum[123]);
-         fprintf(fp, "      time_redist_choose_ave: %lf\n", average[124]);
-         fprintf(fp, "      time_redist_choose_min: %lf\n", minimum[124]);
-         fprintf(fp, "      time_redist_choose_max: %lf\n", maximum[124]);
-         fprintf(fp, "      time_redist_pack_ave: %lf\n", average[125]);
-         fprintf(fp, "      time_redist_pack_min: %lf\n", minimum[125]);
-         fprintf(fp, "      time_redist_pack_max: %lf\n", maximum[125]);
-         fprintf(fp, "      time_redist_move_ave: %lf\n", average[126]);
-         fprintf(fp, "      time_redist_move_min: %lf\n", minimum[126]);
-         fprintf(fp, "      time_redist_move_max: %lf\n", maximum[126]);
-         fprintf(fp, "      time_redist_unpack_ave: %lf\n", average[127]);
-         fprintf(fp, "      time_redist_unpack_min: %lf\n", minimum[127]);
-         fprintf(fp, "      time_redist_unpack_max: %lf\n", maximum[127]);
-         fprintf(fp, "   time_total_load_bal_ave: %lf\n", average[62]);
-         fprintf(fp, "   time_total_load_bal_min: %lf\n", minimum[62]);
-         fprintf(fp, "   time_total_load_bal_max: %lf\n", maximum[62]);
-         fprintf(fp, "      time_load_bal_sort_ave: %lf\n", average[63]);
-         fprintf(fp, "      time_load_bal_sort_min: %lf\n", minimum[63]);
-         fprintf(fp, "      time_load_bal_sort_max: %lf\n", maximum[63]);
-         fprintf(fp, "      time_lb_move_dots_ave: %lf\n", average[117]);
-         fprintf(fp, "      time_lb_move_dots_min: %lf\n", minimum[117]);
-         fprintf(fp, "      time_lb_move_dots_max: %lf\n", maximum[117]);
-         fprintf(fp, "      time_lb_move_blocks_ave: %lf\n", average[118]);
-         fprintf(fp, "      time_lb_move_blocks_min: %lf\n", minimum[118]);
-         fprintf(fp, "      time_lb_move_blocks_max: %lf\n", maximum[118]);
-         fprintf(fp, "         time_lb_mb_pack_ave: %lf\n", average[64]);
-         fprintf(fp, "         time_lb_mb_pack_min: %lf\n", minimum[64]);
-         fprintf(fp, "         time_lb_mb_pack_max: %lf\n", maximum[64]);
-         fprintf(fp, "         time_lb_mb_move_ave: %lf\n", average[65]);
-         fprintf(fp, "         time_lb_mb_move_min: %lf\n", minimum[65]);
-         fprintf(fp, "         time_lb_mb_move_max: %lf\n", maximum[65]);
-         fprintf(fp, "         time_lb_mb_unpack_ave: %lf\n", average[66]);
-         fprintf(fp, "         time_lb_mb_unpack_min: %lf\n", minimum[66]);
-         fprintf(fp, "         time_lb_mb_unpack_max: %lf\n", maximum[66]);
-         fprintf(fp, "         time_lb_mb_misc_ave: %lf\n", average[116]);
-         fprintf(fp, "         time_lb_mb_misc_min: %lf\n", minimum[116]);
-         fprintf(fp, "         time_lb_mb_misc_max: %lf\n", maximum[116]);
+         fprintf(fp, "   time_total_coarsen_ave: %lf\n", average[50]);
+         fprintf(fp, "   time_total_coarsen_min: %lf\n", minimum[50]);
+         fprintf(fp, "   time_total_coarsen_max: %lf\n", maximum[50]);
+         fprintf(fp, "      time_coarsen_ave: %lf\n", average[51]);
+         fprintf(fp, "      time_coarsen_min: %lf\n", minimum[51]);
+         fprintf(fp, "      time_coarsen_max: %lf\n", maximum[51]);
+         fprintf(fp, "      time_coarsen_pack_ave: %lf\n", average[52]);
+         fprintf(fp, "      time_coarsen_pack_min: %lf\n", minimum[52]);
+         fprintf(fp, "      time_coarsen_pack_max: %lf\n", maximum[52]);
+         fprintf(fp, "      time_coarsen_move_ave: %lf\n", average[53]);
+         fprintf(fp, "      time_coarsen_move_min: %lf\n", minimum[53]);
+         fprintf(fp, "      time_coarsen_move_max: %lf\n", maximum[53]);
+         fprintf(fp, "      time_coarsen_unpack_ave: %lf\n", average[54]);
+         fprintf(fp, "      time_coarsen_unpack_min: %lf\n", minimum[54]);
+         fprintf(fp, "      time_coarsen_unpack_max: %lf\n", maximum[54]);
+         fprintf(fp, "   time_total_redist_ave: %lf\n", average[64]);
+         fprintf(fp, "   time_total_redist_min: %lf\n", minimum[64]);
+         fprintf(fp, "   time_total_redist_max: %lf\n", maximum[64]);
+         fprintf(fp, "      time_redist_choose_ave: %lf\n", average[65]);
+         fprintf(fp, "      time_redist_choose_min: %lf\n", minimum[65]);
+         fprintf(fp, "      time_redist_choose_max: %lf\n", maximum[65]);
+         fprintf(fp, "      time_redist_pack_ave: %lf\n", average[66]);
+         fprintf(fp, "      time_redist_pack_min: %lf\n", minimum[66]);
+         fprintf(fp, "      time_redist_pack_max: %lf\n", maximum[66]);
+         fprintf(fp, "      time_redist_move_ave: %lf\n", average[67]);
+         fprintf(fp, "      time_redist_move_min: %lf\n", minimum[67]);
+         fprintf(fp, "      time_redist_move_max: %lf\n", maximum[67]);
+         fprintf(fp, "      time_redist_unpack_ave: %lf\n", average[68]);
+         fprintf(fp, "      time_redist_unpack_min: %lf\n", minimum[68]);
+         fprintf(fp, "      time_redist_unpack_max: %lf\n", maximum[68]);
+         fprintf(fp, "   time_total_load_bal_ave: %lf\n", average[55]);
+         fprintf(fp, "   time_total_load_bal_min: %lf\n", minimum[55]);
+         fprintf(fp, "   time_total_load_bal_max: %lf\n", maximum[55]);
+         fprintf(fp, "      time_load_bal_sort_ave: %lf\n", average[56]);
+         fprintf(fp, "      time_load_bal_sort_min: %lf\n", minimum[56]);
+         fprintf(fp, "      time_load_bal_sort_max: %lf\n", maximum[56]);
+         fprintf(fp, "      time_lb_move_dots_ave: %lf\n", average[61]);
+         fprintf(fp, "      time_lb_move_dots_min: %lf\n", minimum[61]);
+         fprintf(fp, "      time_lb_move_dots_max: %lf\n", maximum[61]);
+         fprintf(fp, "      time_lb_move_blocks_ave: %lf\n", average[62]);
+         fprintf(fp, "      time_lb_move_blocks_min: %lf\n", minimum[62]);
+         fprintf(fp, "      time_lb_move_blocks_max: %lf\n", maximum[62]);
+         fprintf(fp, "         time_lb_mb_pack_ave: %lf\n", average[57]);
+         fprintf(fp, "         time_lb_mb_pack_min: %lf\n", minimum[57]);
+         fprintf(fp, "         time_lb_mb_pack_max: %lf\n", maximum[57]);
+         fprintf(fp, "         time_lb_mb_move_ave: %lf\n", average[58]);
+         fprintf(fp, "         time_lb_mb_move_min: %lf\n", minimum[58]);
+         fprintf(fp, "         time_lb_mb_move_max: %lf\n", maximum[58]);
+         fprintf(fp, "         time_lb_mb_unpack_ave: %lf\n", average[59]);
+         fprintf(fp, "         time_lb_mb_unpack_min: %lf\n", minimum[59]);
+         fprintf(fp, "         time_lb_mb_unpack_max: %lf\n", maximum[59]);
+         fprintf(fp, "         time_lb_mb_misc_ave: %lf\n", average[60]);
+         fprintf(fp, "         time_lb_mb_misc_min: %lf\n", minimum[60]);
+         fprintf(fp, "         time_lb_mb_misc_max: %lf\n", maximum[60]);
 
-         fprintf(fp, "plot_time_ave: %lf\n", average[67]);
-         fprintf(fp, "plot_time_min: %lf\n", minimum[67]);
-         fprintf(fp, "plot_time_max: %lf\n", maximum[67]);
+         fprintf(fp, "plot_time_ave: %lf\n", average[63]);
+         fprintf(fp, "plot_time_min: %lf\n", minimum[63]);
+         fprintf(fp, "plot_time_max: %lf\n", maximum[63]);
 
          fclose(fp);
       }
@@ -547,9 +548,9 @@ void profile(void)
                else if (op->type == 25)
                   fprintf(fp, "Object %d is the volune of z axis cylinder\n", i);
                if (op->bounce == 0)
-                  fprintf(fp, "Oject may leave mesh\n");
+                  fprintf(fp, "Object may leave mesh\n");
                else
-                  fprintf(fp, "Oject center will bounce off of walls\n");
+                  fprintf(fp, "Object center will bounce off of walls\n");
                fprintf(fp, "Center starting at %lf %lf %lf\n",
                       op->orig_cen[0], op->orig_cen[1], op->orig_cen[2]);
                fprintf(fp, "Center end at %lf %lf %lf\n",
@@ -584,6 +585,10 @@ void profile(void)
             fprintf(fp, "Communication will be performed with blocking sends\n");
          fprintf(fp, "Will perform checksums every %d stages\n", checksum_freq);
          fprintf(fp, "Will refine every %d timesteps\n", refine_freq);
+         if (use_rcb)
+            fprintf(fp, "Load balance by RCB (Recursive Coordinate Bisection)\n");
+         else
+            fprintf(fp, "Load balance by Space Filling Curve\n");
          if (lb_opt == 0)
             fprintf(fp, "Load balance will not be performed\n");
          else
@@ -609,17 +614,17 @@ void profile(void)
                 average[0], stddev[0], minimum[0], maximum[0]);
 
          fprintf(fp, "\nNumber of malloc calls: ave, std, min, max (sec): %lf %lf %lf %lf\n",
-                average[110], stddev[110], minimum[110], maximum[110]);
-         fprintf(fp, "\nAmount malloced: ave, std, min, max: %lf %lf %lf %lf\n",
                 average[111], stddev[111], minimum[111], maximum[111]);
-         fprintf(fp, "\nMalloc calls in init: ave, std, min, max (sec): %lf %lf %lf %lf\n",
+         fprintf(fp, "\nAmount malloced: ave, std, min, max: %lf %lf %lf %lf\n",
                 average[112], stddev[112], minimum[112], maximum[112]);
-         fprintf(fp, "\nAmount malloced in init: ave, std, min, max: %lf %lf %lf %lf\n",
+         fprintf(fp, "\nMalloc calls in init: ave, std, min, max (sec): %lf %lf %lf %lf\n",
                 average[113], stddev[113], minimum[113], maximum[113]);
-         fprintf(fp, "\nMalloc calls in timestepping: ave, std, min, max (sec): %lf %lf %lf %lf\n",
+         fprintf(fp, "\nAmount malloced in init: ave, std, min, max: %lf %lf %lf %lf\n",
                 average[114], stddev[114], minimum[114], maximum[114]);
-         fprintf(fp, "\nAmount malloced in timestepping: ave, std, min, max: %lf %lf %lf %lf\n\n",
+         fprintf(fp, "\nMalloc calls in timestepping: ave, std, min, max (sec): %lf %lf %lf %lf\n",
                 average[115], stddev[115], minimum[115], maximum[115]);
+         fprintf(fp, "\nAmount malloced in timestepping: ave, std, min, max: %lf %lf %lf %lf\n\n",
+                average[116], stddev[116], minimum[116], maximum[116]);
 
          fprintf(fp, "---------------------------------------------\n");
          fprintf(fp, "          Computational Performance\n");
@@ -629,9 +634,9 @@ void profile(void)
          fprintf(fp, "     total GFLOPS:             %lf\n", total_gflops);
          fprintf(fp, "     Average GFLOPS per rank:  %lf\n\n", gflops_rank);
          fprintf(fp, "     Total floating point ops: %lf\n\n", total_fp_ops);
-         fprintf(fp, "        Adds:                  %lf\n", average[143]);
-         fprintf(fp, "        Muls:                  %lf\n", average[144]);
-         fprintf(fp, "        Divides:               %lf\n\n", average[145]);
+         fprintf(fp, "        Adds:                  %lf\n", average[132]);
+         fprintf(fp, "        Muls:                  %lf\n", average[133]);
+         fprintf(fp, "        Divides:               %lf\n\n", average[134]);
 
          fprintf(fp, "---------------------------------------------\n");
          fprintf(fp, "           Interblock communication\n");
@@ -678,55 +683,55 @@ void profile(void)
 
             if (!i) {
                fprintf(fp, "     Comm partners total ave: %lf %lf %lf %lf\n",
-                       average[131], stddev[131], minimum[131], maximum[131]);
+                       average[120], stddev[120], minimum[120], maximum[120]);
                fprintf(fp, "     Comm partners total min: %lf %lf %lf %lf\n",
-                       average[136], stddev[136], minimum[136], maximum[136]);
+                       average[125], stddev[125], minimum[125], maximum[125]);
                fprintf(fp, "     Comm partners total max: %lf %lf %lf %lf\n",
-                       average[141], stddev[141], minimum[141], maximum[141]);
+                       average[130], stddev[130], minimum[130], maximum[130]);
                fprintf(fp, "     Comm partners uniq ave : %lf %lf %lf %lf\n",
-                       average[132], stddev[132], minimum[132], maximum[132]);
+                       average[121], stddev[121], minimum[121], maximum[121]);
                fprintf(fp, "     Comm partners uniq min : %lf %lf %lf %lf\n",
-                       average[137], stddev[137], minimum[137], maximum[137]);
+                       average[126], stddev[126], minimum[126], maximum[126]);
                fprintf(fp, "     Comm partners uniq max : %lf %lf %lf %lf\n",
-                       average[142], stddev[142], minimum[142], maximum[142]);
+                       average[131], stddev[131], minimum[131], maximum[131]);
             } else {
                fprintf(fp, "     Comm partners average  : %lf %lf %lf %lf\n",
-                       average[127+i], stddev[127+i], minimum[127+i],
-                       maximum[127+i]);
+                       average[116+i], stddev[116+i], minimum[116+i],
+                       maximum[116+i]);
                fprintf(fp, "     Comm partners minimum  : %lf %lf %lf %lf\n",
-                       average[132+i], stddev[132+i], minimum[132+i],
-                       maximum[132+i]);
+                       average[121+i], stddev[121+i], minimum[121+i],
+                       maximum[121+i]);
                fprintf(fp, "     Comm partners maximum  : %lf %lf %lf %lf\n",
-                       average[137+i], stddev[137+i], minimum[137+i],
-                       maximum[137+i]);
+                       average[126+i], stddev[126+i], minimum[126+i],
+                       maximum[126+i]);
             }
             fprintf(fp, "     Messages received      : %lf %lf %lf %lf\n",
-               average[70+9*i], stddev[70+9*i], minimum[70+9*i],
-                   maximum[70+9*i]);
-            fprintf(fp, "     Bytes received         : %lf %lf %lf %lf\n",
-               average[68+9*i], stddev[68+9*i], minimum[68+9*i],
-                   maximum[68+9*i]);
-            fprintf(fp, "     Faces received         : %lf %lf %lf %lf\n",
-               average[72+9*i], stddev[72+9*i], minimum[72+9*i],
-                   maximum[72+9*i]);
-            fprintf(fp, "     Messages sent          : %lf %lf %lf %lf\n",
                average[71+9*i], stddev[71+9*i], minimum[71+9*i],
                    maximum[71+9*i]);
-            fprintf(fp, "     Bytes sent             : %lf %lf %lf %lf\n",
+            fprintf(fp, "     Bytes received         : %lf %lf %lf %lf\n",
                average[69+9*i], stddev[69+9*i], minimum[69+9*i],
                    maximum[69+9*i]);
-            fprintf(fp, "     Faces sent             : %lf %lf %lf %lf\n",
+            fprintf(fp, "     Faces received         : %lf %lf %lf %lf\n",
                average[73+9*i], stddev[73+9*i], minimum[73+9*i],
                    maximum[73+9*i]);
-            fprintf(fp, "     Faces exchanged same   : %lf %lf %lf %lf\n",
-               average[75+9*i], stddev[75+9*i], minimum[75+9*i],
-                   maximum[75+9*i]);
-            fprintf(fp, "     Faces exchanged diff   : %lf %lf %lf %lf\n",
-               average[76+9*i], stddev[76+9*i], minimum[76+9*i],
-                   maximum[76+9*i]);
-            fprintf(fp, "     Faces with BC applied  : %lf %lf %lf %lf\n",
+            fprintf(fp, "     Messages sent          : %lf %lf %lf %lf\n",
+               average[72+9*i], stddev[72+9*i], minimum[72+9*i],
+                   maximum[72+9*i]);
+            fprintf(fp, "     Bytes sent             : %lf %lf %lf %lf\n",
+               average[70+9*i], stddev[70+9*i], minimum[70+9*i],
+                   maximum[70+9*i]);
+            fprintf(fp, "     Faces sent             : %lf %lf %lf %lf\n",
                average[74+9*i], stddev[74+9*i], minimum[74+9*i],
                    maximum[74+9*i]);
+            fprintf(fp, "     Faces exchanged same   : %lf %lf %lf %lf\n",
+               average[76+9*i], stddev[76+9*i], minimum[76+9*i],
+                   maximum[76+9*i]);
+            fprintf(fp, "     Faces exchanged diff   : %lf %lf %lf %lf\n",
+               average[77+9*i], stddev[77+9*i], minimum[77+9*i],
+                   maximum[77+9*i]);
+            fprintf(fp, "     Faces with BC applied  : %lf %lf %lf %lf\n",
+               average[75+9*i], stddev[75+9*i], minimum[75+9*i],
+                   maximum[75+9*i]);
          }
 
          fprintf(fp, "\n---------------------------------------------\n");
@@ -756,88 +761,88 @@ void profile(void)
          fprintf(fp, "     Max blocks on a processor at any time: %d\n",
                 global_max_b);
          fprintf(fp, "     total blocks split     : %lf\n",
-                 average[104]*num_pes);
-         fprintf(fp, "     total blocks reformed  : %lf\n\n",
                  average[105]*num_pes);
-         fprintf(fp, "     total blocks moved     : %lf\n",
+         fprintf(fp, "     total blocks reformed  : %lf\n\n",
                  average[106]*num_pes);
-         fprintf(fp, "     total moved load bal   : %lf\n",
+         fprintf(fp, "     total blocks moved     : %lf\n",
                  average[107]*num_pes);
+         fprintf(fp, "     total moved load bal   : %lf\n",
+                 average[108]*num_pes);
          fprintf(fp, "     total moved redistribut: %lf\n",
-                 average[122]*num_pes);
-         fprintf(fp, "     total moved coasening  : %lf\n",
                  average[109]*num_pes);
+         fprintf(fp, "     total moved coasening  : %lf\n",
+                 average[110]*num_pes);
          fprintf(fp, "                              average    stddev  minimum  maximum\n");
          fprintf(fp, "     Per processor:\n");
          fprintf(fp, "     total blocks split     : %lf %lf %lf %lf\n",
-                average[104], stddev[104], minimum[104], maximum[104]);
-         fprintf(fp, "     total blocks reformed  : %lf %lf %lf %lf\n",
                 average[105], stddev[105], minimum[105], maximum[105]);
-         fprintf(fp, "     Total blocks moved     : %lf %lf %lf %lf\n",
+         fprintf(fp, "     total blocks reformed  : %lf %lf %lf %lf\n",
                 average[106], stddev[106], minimum[106], maximum[106]);
-         fprintf(fp, "     Blocks moved load bal  : %lf %lf %lf %lf\n",
+         fprintf(fp, "     Total blocks moved     : %lf %lf %lf %lf\n",
                 average[107], stddev[107], minimum[107], maximum[107]);
+         fprintf(fp, "     Blocks moved load bal  : %lf %lf %lf %lf\n",
+                average[108], stddev[108], minimum[108], maximum[108]);
          fprintf(fp, "     Blocks moved redistribu: %lf %lf %lf %lf\n",
-                average[122], stddev[122], minimum[122], maximum[122]);
-         fprintf(fp, "     Blocks moved coarsening: %lf %lf %lf %lf\n",
                 average[109], stddev[109], minimum[109], maximum[109]);
+         fprintf(fp, "     Blocks moved coarsening: %lf %lf %lf %lf\n",
+                average[110], stddev[110], minimum[110], maximum[110]);
          fprintf(fp, "     Time:\n");
          fprintf(fp, "        compare objects     : %lf %lf %lf %lf\n",
                 average[43], stddev[43], minimum[43], maximum[43]);
          fprintf(fp, "        mark refine/coarsen : %lf %lf %lf %lf\n",
                 average[44], stddev[44], minimum[44], maximum[44]);
          fprintf(fp, "        communicate block 1 : %lf %lf %lf %lf\n",
-             average[119], stddev[119], minimum[119], maximum[119]);
+             average[47], stddev[47], minimum[47], maximum[47]);
          fprintf(fp, "        split blocks        : %lf %lf %lf %lf\n",
                 average[46], stddev[46], minimum[46], maximum[46]);
          fprintf(fp, "        communicate block 2 : %lf %lf %lf %lf\n",
-                average[120], stddev[120], minimum[120], maximum[120]);
+                average[48], stddev[48], minimum[48], maximum[48]);
          fprintf(fp, "        sync time           : %lf %lf %lf %lf\n",
-                average[121], stddev[121], minimum[121], maximum[121]);
+                average[49], stddev[49], minimum[49], maximum[49]);
          fprintf(fp, "        misc time           : %lf %lf %lf %lf\n",
                 average[45], stddev[45], minimum[45], maximum[45]);
          fprintf(fp, "        total coarsen blocks: %lf %lf %lf %lf\n",
-                average[47], stddev[47], minimum[47], maximum[47]);
-         fprintf(fp, "           coarsen blocks   : %lf %lf %lf %lf\n",
-                average[48], stddev[48], minimum[48], maximum[48]);
-         fprintf(fp, "           pack blocks      : %lf %lf %lf %lf\n",
-                average[49], stddev[49], minimum[49], maximum[49]);
-         fprintf(fp, "           move blocks      : %lf %lf %lf %lf\n",
                 average[50], stddev[50], minimum[50], maximum[50]);
-         fprintf(fp, "           unpack blocks    : %lf %lf %lf %lf\n",
+         fprintf(fp, "           coarsen blocks   : %lf %lf %lf %lf\n",
                 average[51], stddev[51], minimum[51], maximum[51]);
-         fprintf(fp, "        total redistribute  : %lf %lf %lf %lf\n",
-                average[123], stddev[123], minimum[123], maximum[123]);
-         fprintf(fp, "           choose blocks    : %lf %lf %lf %lf\n",
-                average[124], stddev[124], minimum[124], maximum[124]);
          fprintf(fp, "           pack blocks      : %lf %lf %lf %lf\n",
-                average[125], stddev[125], minimum[125], maximum[125]);
+                average[52], stddev[52], minimum[52], maximum[52]);
          fprintf(fp, "           move blocks      : %lf %lf %lf %lf\n",
-                average[126], stddev[126], minimum[126], maximum[126]);
+                average[53], stddev[53], minimum[53], maximum[53]);
          fprintf(fp, "           unpack blocks    : %lf %lf %lf %lf\n",
-                average[127], stddev[127], minimum[127], maximum[127]);
-         fprintf(fp, "        total load balance  : %lf %lf %lf %lf\n",
-                average[62], stddev[62], minimum[62], maximum[62]);
-         fprintf(fp, "           sort             : %lf %lf %lf %lf\n",
-                average[63], stddev[63], minimum[63], maximum[63]);
-         fprintf(fp, "           move dots back   : %lf %lf %lf %lf\n",
-                average[117], stddev[117], minimum[117], maximum[117]);
-         fprintf(fp, "           move blocks total: %lf %lf %lf %lf\n",
-                average[118], stddev[118], minimum[118], maximum[118]);
-         fprintf(fp, "              pack blocks   : %lf %lf %lf %lf\n",
+                average[54], stddev[54], minimum[54], maximum[54]);
+         fprintf(fp, "        total redistribute  : %lf %lf %lf %lf\n",
                 average[64], stddev[64], minimum[64], maximum[64]);
-         fprintf(fp, "              move blocks   : %lf %lf %lf %lf\n",
+         fprintf(fp, "           choose blocks    : %lf %lf %lf %lf\n",
                 average[65], stddev[65], minimum[65], maximum[65]);
-         fprintf(fp, "              unpack blocks : %lf %lf %lf %lf\n",
+         fprintf(fp, "           pack blocks      : %lf %lf %lf %lf\n",
                 average[66], stddev[66], minimum[66], maximum[66]);
+         fprintf(fp, "           move blocks      : %lf %lf %lf %lf\n",
+                average[67], stddev[67], minimum[67], maximum[67]);
+         fprintf(fp, "           unpack blocks    : %lf %lf %lf %lf\n",
+                average[68], stddev[68], minimum[68], maximum[68]);
+         fprintf(fp, "        total load balance  : %lf %lf %lf %lf\n",
+                average[55], stddev[55], minimum[55], maximum[55]);
+         fprintf(fp, "           sort             : %lf %lf %lf %lf\n",
+                average[56], stddev[56], minimum[56], maximum[56]);
+         fprintf(fp, "           move dots back   : %lf %lf %lf %lf\n",
+                average[61], stddev[61], minimum[61], maximum[61]);
+         fprintf(fp, "           move blocks total: %lf %lf %lf %lf\n",
+                average[62], stddev[62], minimum[62], maximum[62]);
+         fprintf(fp, "              pack blocks   : %lf %lf %lf %lf\n",
+                average[57], stddev[57], minimum[57], maximum[57]);
+         fprintf(fp, "              move blocks   : %lf %lf %lf %lf\n",
+                average[58], stddev[58], minimum[58], maximum[58]);
+         fprintf(fp, "              unpack blocks : %lf %lf %lf %lf\n",
+                average[59], stddev[59], minimum[59], maximum[59]);
          fprintf(fp, "              misc          : %lf %lf %lf %lf\n\n",
-                average[116], stddev[116], minimum[116], maximum[116]);
+                average[60], stddev[60], minimum[60], maximum[60]);
 
          fprintf(fp, "---------------------------------------------\n");
          fprintf(fp, "                   Plot\n");
          fprintf(fp, "---------------------------------------------\n\n");
          fprintf(fp, "     Time: ave, stddev, min, max (sec): %lf %lf %lf %lf\n\n",
-                average[67], stddev[67], minimum[67], maximum[67]);
+                average[63], stddev[63], minimum[63], maximum[63]);
          fprintf(fp, "     Number of plot steps: %d\n", nps);
          fprintf(fp, "\n ================== End report ===================\n");
 
@@ -922,9 +927,9 @@ void profile(void)
                else if (op->type == 25)
                   printf("Object %d is the volune of z axis cylinder\n", i);
                if (op->bounce == 0)
-                  printf("Oject may leave mesh\n");
+                  printf("Object may leave mesh\n");
                else
-                  printf("Oject center will bounce off of walls\n");
+                  printf("Object center will bounce off of walls\n");
                printf("Center starting at %lf %lf %lf\n",
                       op->orig_cen[0], op->orig_cen[1], op->orig_cen[2]);
                printf("Center end at %lf %lf %lf\n",
@@ -959,6 +964,10 @@ void profile(void)
             printf("Communication will be performed with blocking sends\n");
          printf("Will perform checksums every %d stages\n", checksum_freq);
          printf("Will refine every %d timesteps\n", refine_freq);
+         if (use_rcb)
+            printf("Load balance by RCB (Recursive Coordinate Bisection)\n");
+         else
+            printf("Load balance by Space Filling Curve\n");
          if (lb_opt == 0)
             printf("Load balance will not be performed\n");
          else
@@ -984,17 +993,17 @@ void profile(void)
                 average[0], stddev[0], minimum[0], maximum[0]);
 
          printf("\nNumber of malloc calls: ave, std, min, max (sec): %lf %lf %lf %lf\n",
-                average[110], stddev[110], minimum[110], maximum[110]);
-         printf("\nAmount malloced: ave, std, min, max: %lf %lf %lf %lf\n",
                 average[111], stddev[111], minimum[111], maximum[111]);
-         printf("\nMalloc calls in init: ave, std, min, max (sec): %lf %lf %lf %lf\n",
+         printf("\nAmount malloced: ave, std, min, max: %lf %lf %lf %lf\n",
                 average[112], stddev[112], minimum[112], maximum[112]);
-         printf("\nAmount malloced in init: ave, std, min, max: %lf %lf %lf %lf\n",
+         printf("\nMalloc calls in init: ave, std, min, max (sec): %lf %lf %lf %lf\n",
                 average[113], stddev[113], minimum[113], maximum[113]);
-         printf("\nMalloc calls in timestepping: ave, std, min, max (sec): %lf %lf %lf %lf\n",
+         printf("\nAmount malloced in init: ave, std, min, max: %lf %lf %lf %lf\n",
                 average[114], stddev[114], minimum[114], maximum[114]);
-         printf("\nAmount malloced in timestepping: ave, std, min, max: %lf %lf %lf %lf\n\n",
+         printf("\nMalloc calls in timestepping: ave, std, min, max (sec): %lf %lf %lf %lf\n",
                 average[115], stddev[115], minimum[115], maximum[115]);
+         printf("\nAmount malloced in timestepping: ave, std, min, max: %lf %lf %lf %lf\n\n",
+                average[116], stddev[116], minimum[116], maximum[116]);
 
          printf("---------------------------------------------\n");
          printf("          Computational Performance\n");
@@ -1004,9 +1013,9 @@ void profile(void)
          printf("     total GFLOPS:             %lf\n", total_gflops);
          printf("     Average GFLOPS per rank:  %lf\n\n", gflops_rank);
          printf("     Total floating point ops: %lf\n\n", total_fp_ops);
-         printf("        Adds:                  %lf\n", average[143]);
-         printf("        Muls:                  %lf\n", average[144]);
-         printf("        Divides:               %lf\n\n", average[145]);
+         printf("        Adds:                  %lf\n", average[132]);
+         printf("        Muls:                  %lf\n", average[133]);
+         printf("        Divides:               %lf\n\n", average[134]);
 
          printf("---------------------------------------------\n");
          printf("           Interblock communication\n");
@@ -1053,55 +1062,55 @@ void profile(void)
 
             if (!i) {
                printf("     Comm partners total ave: %lf %lf %lf %lf\n",
-                      average[131], stddev[131], minimum[131], maximum[131]);
+                      average[120], stddev[120], minimum[120], maximum[120]);
                printf("     Comm partners total min: %lf %lf %lf %lf\n",
-                      average[136], stddev[136], minimum[136], maximum[136]);
+                      average[125], stddev[125], minimum[125], maximum[125]);
                printf("     Comm partners total max: %lf %lf %lf %lf\n",
-                      average[141], stddev[141], minimum[141], maximum[141]);
+                      average[130], stddev[130], minimum[130], maximum[130]);
                printf("     Comm partners uniq ave : %lf %lf %lf %lf\n",
-                      average[132], stddev[132], minimum[132], maximum[132]);
+                      average[121], stddev[121], minimum[121], maximum[121]);
                printf("     Comm partners uniq min : %lf %lf %lf %lf\n",
-                      average[137], stddev[137], minimum[137], maximum[137]);
+                      average[126], stddev[126], minimum[126], maximum[126]);
                printf("     Comm partners uniq max : %lf %lf %lf %lf\n",
-                      average[142], stddev[142], minimum[142], maximum[142]);
+                      average[131], stddev[131], minimum[131], maximum[131]);
             } else {
                printf("     Comm partners average  : %lf %lf %lf %lf\n",
-                      average[127+i], stddev[127+i], minimum[127+i],
-                      maximum[127+i]);
+                      average[116+i], stddev[116+i], minimum[116+i],
+                      maximum[116+i]);
                printf("     Comm partners minimum  : %lf %lf %lf %lf\n",
-                      average[132+i], stddev[132+i], minimum[132+i],
-                      maximum[132+i]);
+                      average[121+i], stddev[121+i], minimum[121+i],
+                      maximum[121+i]);
                printf("     Comm partners maximum  : %lf %lf %lf %lf\n",
-                      average[137+i], stddev[137+i], minimum[137+i],
-                      maximum[137+i]);
+                      average[126+i], stddev[126+i], minimum[126+i],
+                      maximum[126+i]);
             }
             printf("     Messages received      : %lf %lf %lf %lf\n",
-                   average[70+9*i], stddev[70+9*i], minimum[70+9*i],
-                   maximum[70+9*i]);
-            printf("     Bytes received         : %lf %lf %lf %lf\n",
-                   average[68+9*i], stddev[68+9*i], minimum[68+9*i],
-                   maximum[68+9*i]);
-            printf("     Faces received         : %lf %lf %lf %lf\n",
-                   average[72+9*i], stddev[72+9*i], minimum[72+9*i],
-                   maximum[72+9*i]);
-            printf("     Messages sent          : %lf %lf %lf %lf\n",
                    average[71+9*i], stddev[71+9*i], minimum[71+9*i],
                    maximum[71+9*i]);
-            printf("     Bytes sent             : %lf %lf %lf %lf\n",
+            printf("     Bytes received         : %lf %lf %lf %lf\n",
                    average[69+9*i], stddev[69+9*i], minimum[69+9*i],
                    maximum[69+9*i]);
-            printf("     Faces sent             : %lf %lf %lf %lf\n",
+            printf("     Faces received         : %lf %lf %lf %lf\n",
                    average[73+9*i], stddev[73+9*i], minimum[73+9*i],
                    maximum[73+9*i]);
-            printf("     Faces exchanged same   : %lf %lf %lf %lf\n",
-                   average[75+9*i], stddev[75+9*i], minimum[75+9*i],
-                   maximum[75+9*i]);
-            printf("     Faces exchanged diff   : %lf %lf %lf %lf\n",
-                   average[76+9*i], stddev[76+9*i], minimum[76+9*i],
-                   maximum[76+9*i]);
-            printf("     Faces with BC applied  : %lf %lf %lf %lf\n",
+            printf("     Messages sent          : %lf %lf %lf %lf\n",
+                   average[72+9*i], stddev[72+9*i], minimum[72+9*i],
+                   maximum[72+9*i]);
+            printf("     Bytes sent             : %lf %lf %lf %lf\n",
+                   average[70+9*i], stddev[70+9*i], minimum[70+9*i],
+                   maximum[70+9*i]);
+            printf("     Faces sent             : %lf %lf %lf %lf\n",
                    average[74+9*i], stddev[74+9*i], minimum[74+9*i],
                    maximum[74+9*i]);
+            printf("     Faces exchanged same   : %lf %lf %lf %lf\n",
+                   average[76+9*i], stddev[76+9*i], minimum[76+9*i],
+                   maximum[76+9*i]);
+            printf("     Faces exchanged diff   : %lf %lf %lf %lf\n",
+                   average[77+9*i], stddev[77+9*i], minimum[77+9*i],
+                   maximum[77+9*i]);
+            printf("     Faces with BC applied  : %lf %lf %lf %lf\n",
+                   average[75+9*i], stddev[75+9*i], minimum[75+9*i],
+                   maximum[75+9*i]);
          }
 
          printf("\n---------------------------------------------\n");
@@ -1130,83 +1139,83 @@ void profile(void)
                 (long long) nb_min, (long long) nb_max);
          printf("     Max blocks on a processor at any time: %d\n",
                 global_max_b);
-         printf("     total blocks split     : %lf\n", average[104]*num_pes);
-         printf("     total blocks reformed  : %lf\n\n", average[105]*num_pes);
-         printf("     total blocks moved     : %lf\n", average[106]*num_pes);
-         printf("     total moved load bal   : %lf\n", average[107]*num_pes);
-         printf("     total moved redistribut: %lf\n", average[122]*num_pes);
-         printf("     total moved coasening  : %lf\n", average[109]*num_pes);
+         printf("     total blocks split     : %lf\n", average[105]*num_pes);
+         printf("     total blocks reformed  : %lf\n\n", average[106]*num_pes);
+         printf("     total blocks moved     : %lf\n", average[107]*num_pes);
+         printf("     total moved load bal   : %lf\n", average[108]*num_pes);
+         printf("     total moved redistribut: %lf\n", average[109]*num_pes);
+         printf("     total moved coasening  : %lf\n", average[110]*num_pes);
          printf("                              average    stddev  minimum  maximum\n");
          printf("     Per processor:\n");
          printf("     total blocks split     : %lf %lf %lf %lf\n",
-                average[104], stddev[104], minimum[104], maximum[104]);
-         printf("     total blocks reformed  : %lf %lf %lf %lf\n",
                 average[105], stddev[105], minimum[105], maximum[105]);
-         printf("     Total blocks moved     : %lf %lf %lf %lf\n",
+         printf("     total blocks reformed  : %lf %lf %lf %lf\n",
                 average[106], stddev[106], minimum[106], maximum[106]);
-         printf("     Blocks moved load bal  : %lf %lf %lf %lf\n",
+         printf("     Total blocks moved     : %lf %lf %lf %lf\n",
                 average[107], stddev[107], minimum[107], maximum[107]);
+         printf("     Blocks moved load bal  : %lf %lf %lf %lf\n",
+                average[108], stddev[108], minimum[108], maximum[108]);
          printf("     Blocks moved redistribu: %lf %lf %lf %lf\n",
-                average[122], stddev[122], minimum[122], maximum[122]);
-         printf("     Blocks moved coarsening: %lf %lf %lf %lf\n",
                 average[109], stddev[109], minimum[109], maximum[109]);
+         printf("     Blocks moved coarsening: %lf %lf %lf %lf\n",
+                average[110], stddev[110], minimum[110], maximum[110]);
          printf("     Time:\n");
          printf("        compare objects     : %lf %lf %lf %lf\n",
                 average[43], stddev[43], minimum[43], maximum[43]);
          printf("        mark refine/coarsen : %lf %lf %lf %lf\n",
                 average[44], stddev[44], minimum[44], maximum[44]);
          printf("        communicate block 1 : %lf %lf %lf %lf\n",
-             average[119], stddev[119], minimum[119], maximum[119]);
+             average[47], stddev[47], minimum[47], maximum[47]);
          printf("        split blocks        : %lf %lf %lf %lf\n",
                 average[46], stddev[46], minimum[46], maximum[46]);
          printf("        communicate block 2 : %lf %lf %lf %lf\n",
-                average[120], stddev[120], minimum[120], maximum[120]);
+                average[48], stddev[48], minimum[48], maximum[48]);
          printf("        sync time           : %lf %lf %lf %lf\n",
-                average[121], stddev[121], minimum[121], maximum[121]);
+                average[49], stddev[49], minimum[49], maximum[49]);
          printf("        misc time           : %lf %lf %lf %lf\n",
                 average[45], stddev[45], minimum[45], maximum[45]);
          printf("        total coarsen blocks: %lf %lf %lf %lf\n",
-                average[47], stddev[47], minimum[47], maximum[47]);
-         printf("           coarsen blocks   : %lf %lf %lf %lf\n",
-                average[48], stddev[48], minimum[48], maximum[48]);
-         printf("           pack blocks      : %lf %lf %lf %lf\n",
-                average[49], stddev[49], minimum[49], maximum[49]);
-         printf("           move blocks      : %lf %lf %lf %lf\n",
                 average[50], stddev[50], minimum[50], maximum[50]);
-         printf("           unpack blocks    : %lf %lf %lf %lf\n",
+         printf("           coarsen blocks   : %lf %lf %lf %lf\n",
                 average[51], stddev[51], minimum[51], maximum[51]);
-         printf("        total redistribute  : %lf %lf %lf %lf\n",
-                average[123], stddev[123], minimum[123], maximum[123]);
-         printf("           choose blocks    : %lf %lf %lf %lf\n",
-                average[124], stddev[124], minimum[124], maximum[124]);
          printf("           pack blocks      : %lf %lf %lf %lf\n",
-                average[125], stddev[125], minimum[125], maximum[125]);
+                average[52], stddev[52], minimum[52], maximum[52]);
          printf("           move blocks      : %lf %lf %lf %lf\n",
-                average[126], stddev[126], minimum[126], maximum[126]);
+                average[53], stddev[53], minimum[53], maximum[53]);
          printf("           unpack blocks    : %lf %lf %lf %lf\n",
-                average[127], stddev[127], minimum[127], maximum[127]);
-         printf("        total load balance  : %lf %lf %lf %lf\n",
-                average[62], stddev[62], minimum[62], maximum[62]);
-         printf("           sort             : %lf %lf %lf %lf\n",
-                average[63], stddev[63], minimum[63], maximum[63]);
-         printf("           move dots back   : %lf %lf %lf %lf\n",
-                average[117], stddev[117], minimum[117], maximum[117]);
-         printf("           move blocks total: %lf %lf %lf %lf\n",
-                average[118], stddev[118], minimum[118], maximum[118]);
-         printf("              pack blocks   : %lf %lf %lf %lf\n",
+                average[54], stddev[54], minimum[54], maximum[54]);
+         printf("        total redistribute  : %lf %lf %lf %lf\n",
                 average[64], stddev[64], minimum[64], maximum[64]);
-         printf("              move blocks   : %lf %lf %lf %lf\n",
+         printf("           choose blocks    : %lf %lf %lf %lf\n",
                 average[65], stddev[65], minimum[65], maximum[65]);
-         printf("              unpack blocks : %lf %lf %lf %lf\n",
+         printf("           pack blocks      : %lf %lf %lf %lf\n",
                 average[66], stddev[66], minimum[66], maximum[66]);
+         printf("           move blocks      : %lf %lf %lf %lf\n",
+                average[67], stddev[67], minimum[67], maximum[67]);
+         printf("           unpack blocks    : %lf %lf %lf %lf\n",
+                average[68], stddev[68], minimum[68], maximum[68]);
+         printf("        total load balance  : %lf %lf %lf %lf\n",
+                average[55], stddev[55], minimum[55], maximum[55]);
+         printf("           sort             : %lf %lf %lf %lf\n",
+                average[56], stddev[56], minimum[56], maximum[56]);
+         printf("           move dots back   : %lf %lf %lf %lf\n",
+                average[61], stddev[61], minimum[61], maximum[61]);
+         printf("           move blocks total: %lf %lf %lf %lf\n",
+                average[62], stddev[62], minimum[62], maximum[62]);
+         printf("              pack blocks   : %lf %lf %lf %lf\n",
+                average[57], stddev[57], minimum[57], maximum[57]);
+         printf("              move blocks   : %lf %lf %lf %lf\n",
+                average[58], stddev[58], minimum[58], maximum[58]);
+         printf("              unpack blocks : %lf %lf %lf %lf\n",
+                average[59], stddev[59], minimum[59], maximum[59]);
          printf("              misc          : %lf %lf %lf %lf\n\n",
-                average[116], stddev[116], minimum[116], maximum[116]);
+                average[60], stddev[60], minimum[60], maximum[60]);
 
          printf("---------------------------------------------\n");
          printf("                   Plot\n");
          printf("---------------------------------------------\n\n");
          printf("     Time: ave, stddev, min, max (sec): %lf %lf %lf %lf\n\n",
-                average[67], stddev[67], minimum[67], maximum[67]);
+                average[63], stddev[63], minimum[63], maximum[63]);
          printf("     Number of plot steps: %d\n", nps);
          printf("\n ================== End report ===================\n");
 printf("Summary: ranks %d ts %d time %lf calc %lf max comm %lf min red %lf refine %lf blocks/ts %lf max_blocks %d\n", num_pes, num_tsteps, average[0], average[38], maximum[37], minimum[39], average[42], ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)), global_max_b);
@@ -1217,9 +1226,10 @@ fflush(NULL);
 
 void calculate_results(void)
 {
-   double results[146], stddev_sum[143];
+   double results[135], stddev_sum[132];
    int i;
 
+   MPI_Allreduce(&local_max_b, &global_max_b, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD);
    results[0] = timer_all;
    for (i = 0; i < 9; i++)
       results[i+1] = 0.0;
@@ -1244,95 +1254,83 @@ void calculate_results(void)
    results[44] = timer_refine_mr;
    results[45] = timer_refine_cc;
    results[46] = timer_refine_sb;
-   results[119] = timer_refine_c1;
-   results[120] = timer_refine_c2;
-   results[121] = timer_refine_sy;
-   results[47] = timer_cb_all;
-   results[48] = timer_cb_cb;
-   results[49] = timer_cb_pa;
-   results[50] = timer_cb_mv;
-   results[51] = timer_cb_un;
-   results[52] = 0;
-   results[53] = 0;
-   results[54] = 0;
-   results[55] = 0;
-   results[56] = 0;
-   results[57] = 0;
-   results[58] = 0;
-   results[59] = 0;
-   results[60] = 0;
-   results[61] = 0;
-   results[62] = timer_lb_all;
-   results[63] = timer_lb_sort;
-   results[64] = timer_lb_pa;
-   results[65] = timer_lb_mv;
-   results[66] = timer_lb_un;
-   results[116] = timer_lb_misc;
-   results[117] = timer_lb_mb;
-   results[118] = timer_lb_ma;
-   results[67] = timer_plot;
-   results[123] = timer_rs_all;
-   results[124] = timer_rs_ca;
-   results[125] = timer_rs_pa;
-   results[126] = timer_rs_mv;
-   results[127] = timer_rs_un;
+   results[47] = timer_refine_c1;
+   results[48] = timer_refine_c2;
+   results[49] = timer_refine_sy;
+   results[50] = timer_cb_all;
+   results[51] = timer_cb_cb;
+   results[52] = timer_cb_pa;
+   results[53] = timer_cb_mv;
+   results[54] = timer_cb_un;
+   results[55] = timer_lb_all;
+   results[56] = timer_lb_sort;
+   results[57] = timer_lb_pa;
+   results[58] = timer_lb_mv;
+   results[59] = timer_lb_un;
+   results[60] = timer_lb_misc;
+   results[61] = timer_lb_mb;
+   results[62] = timer_lb_ma;
+   results[63] = timer_plot;
+   results[64] = timer_rs_all;
+   results[65] = timer_rs_ca;
+   results[66] = timer_rs_pa;
+   results[67] = timer_rs_mv;
+   results[68] = timer_rs_un;
    for (i = 0; i < 9; i++)
-      results[68+i] = 0.0;
+      results[69+i] = 0.0;
    for (i = 0; i < 3; i++) {
-      results[68] += results[77+9*i] = size_mesg_recv[i];
-      results[69] += results[78+9*i] = size_mesg_send[i];
-      results[70] += results[79+9*i] = (double) counter_halo_recv[i];
-      results[71] += results[80+9*i] = (double) counter_halo_send[i];
-      results[72] += results[81+9*i] = (double) counter_face_recv[i];
-      results[73] += results[82+9*i] = (double) counter_face_send[i];
-      results[74] += results[83+9*i] = (double) counter_bc[i];
-      results[75] += results[84+9*i] = (double) counter_same[i];
-      results[76] += results[85+9*i] = (double) counter_diff[i];
+      results[69] += results[78+9*i] = size_mesg_recv[i];
+      results[70] += results[79+9*i] = size_mesg_send[i];
+      results[71] += results[80+9*i] = (double) counter_halo_recv[i];
+      results[72] += results[81+9*i] = (double) counter_halo_send[i];
+      results[73] += results[82+9*i] = (double) counter_face_recv[i];
+      results[74] += results[83+9*i] = (double) counter_face_send[i];
+      results[75] += results[84+9*i] = (double) counter_bc[i];
+      results[76] += results[85+9*i] = (double) counter_same[i];
+      results[77] += results[86+9*i] = (double) counter_diff[i];
    }
-   results[104] = (double) num_refined;
-   results[105] = (double) num_reformed;
-   num_moved_all = num_moved_lb + num_moved_reduce + num_moved_coarsen +
-                   num_moved_rs;
-   results[106] = (double) num_moved_all;
-   results[107] = (double) num_moved_lb;
-   results[122] = (double) num_moved_rs;
-   results[108] = (double) num_moved_reduce;
-   results[109] = (double) num_moved_coarsen;
-   results[110] = (double) counter_malloc;
-   results[111] = size_malloc;
-   results[112] = (double) counter_malloc_init;
-   results[113] = size_malloc_init;
-   results[114] = (double) (counter_malloc - counter_malloc_init);
-   results[115] = size_malloc - size_malloc_init;
-   results[128] = (double) num_comm_x/(double) nrs;
-   results[129] = (double) num_comm_y/(double) nrs;
-   results[130] = (double) num_comm_z/(double) nrs;
-   results[131] = (double) num_comm_tot/(double) nrs;
-   results[132] = (double) num_comm_uniq/(double) nrs;
-   results[133] = num_comm_x_min;
-   results[134] = num_comm_y_min;
-   results[135] = num_comm_z_min;
-   results[136] = num_comm_t_min;
-   results[137] = num_comm_u_min;
-   results[138] = num_comm_x_max;
-   results[139] = num_comm_y_max;
-   results[140] = num_comm_z_max;
-   results[141] = num_comm_t_max;
-   results[142] = num_comm_u_max;
-   results[143] = total_fp_adds;
-   results[144] = total_fp_muls;
-   results[145] = total_fp_divs;
+   results[105] = (double) num_refined;
+   results[106] = (double) num_reformed;
+   num_moved_all = num_moved_lb + num_moved_coarsen + num_moved_rs;
+   results[107] = (double) num_moved_all;
+   results[108] = (double) num_moved_lb;
+   results[109] = (double) num_moved_rs;
+   results[110] = (double) num_moved_coarsen;
+   results[111] = (double) counter_malloc;
+   results[112] = size_malloc;
+   results[113] = (double) counter_malloc_init;
+   results[114] = size_malloc_init;
+   results[115] = (double) (counter_malloc - counter_malloc_init);
+   results[116] = size_malloc - size_malloc_init;
+   results[117] = (double) num_comm_x/(double) nrs;
+   results[118] = (double) num_comm_y/(double) nrs;
+   results[119] = (double) num_comm_z/(double) nrs;
+   results[120] = (double) num_comm_tot/(double) nrs;
+   results[121] = (double) num_comm_uniq/(double) nrs;
+   results[122] = num_comm_x_min;
+   results[123] = num_comm_y_min;
+   results[124] = num_comm_z_min;
+   results[125] = num_comm_t_min;
+   results[126] = num_comm_u_min;
+   results[127] = num_comm_x_max;
+   results[128] = num_comm_y_max;
+   results[129] = num_comm_z_max;
+   results[130] = num_comm_t_max;
+   results[131] = num_comm_u_max;
+   results[132] = total_fp_adds;
+   results[133] = total_fp_muls;
+   results[134] = total_fp_divs;
 
-   MPI_Allreduce(results, average, 146, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(results, minimum, 143, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-   MPI_Allreduce(results, maximum, 143, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+   MPI_Allreduce(results, average, 135, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(results, minimum, 132, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+   MPI_Allreduce(results, maximum, 132, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-   for (i = 0; i < 143; i++) {
+   for (i = 0; i < 132; i++) {
       average[i] /= (double) num_pes;
       stddev[i] = (results[i] - average[i])*(results[i] - average[i]);
    }
-   MPI_Allreduce(stddev, stddev_sum, 143, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   for (i = 0; i < 143; i++)
+   MPI_Allreduce(stddev, stddev_sum, 132, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   for (i = 0; i < 132; i++)
       stddev[i] = sqrt(stddev_sum[i]/((double) num_pes));
 }
 
@@ -1400,7 +1398,6 @@ void init_profile(void)
    num_moved_all = 0;
    num_moved_lb = 0;
    num_moved_rs = 0;
-   num_moved_reduce = 0;
    num_moved_coarsen = 0;
    num_comm_x = 0;
    num_comm_y = 0;

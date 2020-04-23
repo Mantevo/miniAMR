@@ -93,6 +93,7 @@ void split_blocks(void)
                num_refined++;
                pp = &parents[p];
                pp->number = bp->number;
+               pp->num_prime = bp->num_prime;
                pp->level = bp->level;
                pp->parent = bp->parent;
                pp->parent_node = bp->parent_node;
@@ -138,6 +139,7 @@ void split_blocks(void)
                                  (p2[level+1]*npy*init_block_y) +
                                  (2*yp+j1))*(p2[level+1]*npx*init_block_x) +
                                 2*xp + i1 + block_start[level+1];
+                  bp1->num_prime = bp->num_prime + o*p8[num_refine - level - 1];
                   add_sorted_list(m, bp1->number, (level+1));
                   bp1->cen[0] = bp->cen[0] +
                                 (2*i1 - 1)*p2[num_refine - level - 1];
@@ -375,6 +377,7 @@ void consolidate_blocks(void)
             local_num_blocks[level]++;
             local_num_blocks[level+1] -= 8;
             bp->number = pp->number;
+            bp->num_prime = pp->num_prime;
             pp->number = -1;
             bp->level = pp->level;
             bp->parent = pp->parent;

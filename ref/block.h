@@ -29,6 +29,7 @@ typedef long long num_sz;
 
 typedef struct {
    num_sz number;
+   num_sz num_prime;
    int level;
    int refine;
    int new_proc;
@@ -47,6 +48,7 @@ block *blocks;
 
 typedef struct {
    num_sz number;
+   num_sz num_prime;
    int level;
    num_sz parent;      // -1 if original block
    int parent_node;
@@ -73,9 +75,7 @@ int max_num_blocks;
 int num_refine;
 int uniform_refine;
 int x_block_size, y_block_size, z_block_size;
-int num_cells;
 int num_vars;
-int mat;
 int comm_vars;
 int init_block_x, init_block_y, init_block_z;
 int reorder;
@@ -83,28 +83,32 @@ int npx, npy, npz;
 int inbalance;
 int refine_freq;
 int report_diffusion;
-int checksum_freq;
-int stages_per_ts;
 int error_tol;
 int num_tsteps;
+int use_time;
+double end_time;
+int stages_per_ts;
+int checksum_freq;
 int stencil;
 int report_perf;
 int plot_freq;
+int num_objects;
 int lb_opt;
 int block_change;
 int code;
 int permute;
 int nonblocking;
 int refine_ghost;
-int use_time;
-double end_time;
-int send_faces;
 int change_dir;
 int group_blocks;
 int limit_move;
+int send_faces;
+int use_rcb;
+
 int first;
 int *dirs;
-
+int num_cells;
+int mat;
 int max_num_parents;
 int num_parents;
 int max_active_parent;
@@ -130,7 +134,6 @@ double total_fp_divs;
 double total_fp_adds;
 double total_fp_muls;
 
-int num_objects;
 typedef struct {
    int type;
    int bounce;
@@ -148,10 +151,18 @@ int num_dots;
 int max_num_dots;
 int max_active_dot;
 typedef struct {
-   int cen[3];
    num_sz number;
    int n;
    int proc;
    int new_proc;
+   int cen[3];
 } dot;
 dot *dots;
+typedef struct {
+   num_sz number;
+   num_sz num_prime;
+   int n;
+   int proc;
+   int new_proc;
+} spot;
+spot *spots;

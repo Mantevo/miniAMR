@@ -38,12 +38,12 @@
 void refine(int ts)
 {
    int i, j, n, in, min_b, max_b, sum_b, num_refine_step, num_split,
-       nm_r, nm_c, nm_t, nc_t, nc_u, nc[5], nca[5], ncn[5], ncx[5], done;
+       nm_r, nm_c, nc_t, nc_u, nc[5], nca[5], ncn[5], ncx[5], done;
    double ratio, tp, tm, tu, tp1, tm1, tu1, t1, t2, t3, t4, t5;
    block *bp;
 
    nrs++;
-   nm_r = nm_c = nm_t = 0;
+   nm_r = nm_c = 0;
    t4 = tp = tm = tu = tp1 = tm1 = tu1 = 0.0;
    t1 = timer();
 
@@ -147,8 +147,6 @@ void refine(int ts)
                        MPI_COMM_WORLD);
          MPI_Allreduce(&num_active, &sum_b, 1, MPI_INT, MPI_SUM,
                        MPI_COMM_WORLD);
-         MPI_Allreduce(&local_max_b, &global_max_b, 1, MPI_INT, MPI_MAX,
-                       MPI_COMM_WORLD);
          t4 += timer() - t2;
          ratio = ((double) (max_b - min_b)*num_pes)/((double) sum_b);
          if (!uniform_refine && max_b > (min_b + 1) &&
@@ -181,9 +179,7 @@ void refine(int ts)
    MPI_Allreduce(&num_active, &min_b, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
    MPI_Allreduce(&num_active, &max_b, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
    MPI_Allreduce(&num_active, &sum_b, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(&local_max_b, &global_max_b, 1, MPI_INT, MPI_MAX,
-                 MPI_COMM_WORLD);
-   i = nm_r + nm_c + nm_t;
+   i = nm_r + nm_c;
    MPI_Allreduce(&i, &num_split, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
    for (j = 0; j <= num_refine; j++) {
       if (!j)
@@ -290,7 +286,6 @@ void refine(int ts)
 
    num_moved_rs += nm_r;
    num_moved_coarsen += nm_c;
-   num_moved_reduce += nm_t;
    check_buff_size();
    t5 = timer();
    timer_refine_cc += t5 - t1 - t4;
@@ -489,6 +484,7 @@ void reset_all(void)
       if ((pp = &parents[n])->number >= 0) {
          pp->refine = -1;
          for (c = 0; c < 8; c++)
+            // if child is a parent then can not be unrefined until child is
             if (pp->child[c] < 0)
                pp->refine = 0;
          if (pp->refine == 0)

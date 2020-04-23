@@ -9,7 +9,7 @@ EXEC = miniAMR.x
 
 OBJS = block.o check_sum.o comm_block.o comm.o comm_parent.o comm_refine.o \
        comm_util.o driver.o init.o main.o move.o pack.o plot.o profile.o \
-       rcb.o refine.o stencil.o util.o
+       rcb.o refine.o sfc.o stencil.o util.o
 
 $(EXEC): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
@@ -53,6 +53,8 @@ profile.o: block.h comm.h proto.h timer.h
 rcb.o: block.h comm.h proto.h timer.h
 
 refine.o: block.h comm.h proto.h timer.h
+
+sfc.o: block.h comm.h proto.h timer.h
 
 stencil.o: block.h comm.h proto.h
 

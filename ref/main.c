@@ -37,7 +37,7 @@
 int main(int argc, char** argv)
 {
    int i, ierr, object_num;
-   int params[38];
+   int params[39];
    double *objs;
 #include "param.h"
 
@@ -126,6 +126,10 @@ int main(int argc, char** argv)
             limit_move = atoi(argv[++i]);
          else if (!strcmp(argv[i], "--send_faces"))
             send_faces = 1;
+         else if (!strcmp(argv[i], "--rcb"))
+            use_rcb = 1;   // default, but included for completeness
+         else if (!strcmp(argv[i], "--sfc"))
+            use_rcb = 0;
          else if (!strcmp(argv[i], "--num_objects")) {
             num_objects = atoi(argv[++i]);
             objects = (object *) ma_malloc(num_objects*sizeof(object),
@@ -164,6 +168,9 @@ int main(int argc, char** argv)
          printf("Error - number of objects less than specified");
          MPI_Abort(MPI_COMM_WORLD, -1);
       }
+
+      if (reorder == -1)
+         reorder = use_rcb;
 
       if (check_input())
          MPI_Abort(MPI_COMM_WORLD, -1);
@@ -209,8 +216,9 @@ int main(int argc, char** argv)
       params[35] = group_blocks;
       params[36] = limit_move;
       params[37] = send_faces;
+      params[38] = use_rcb;
 
-      MPI_Bcast(params, 38, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 39, MPI_INT, 0, MPI_COMM_WORLD);
 
       objs = (double *) ma_malloc(14*num_objects*sizeof(double),
                                   __FILE__, __LINE__);
@@ -234,7 +242,7 @@ int main(int argc, char** argv)
       MPI_Bcast(objs, (14*num_objects), MPI_DOUBLE, 0, MPI_COMM_WORLD);
       free(objs);
    } else {
-      MPI_Bcast(params, 38, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 39, MPI_INT, 0, MPI_COMM_WORLD);
       max_num_blocks = params[ 0];
       num_refine = params[ 1];
       uniform_refine = params[ 2];
@@ -273,6 +281,7 @@ int main(int argc, char** argv)
       group_blocks = params[35];
       limit_move = params[36];
       send_faces = params[37];
+      use_rcb = params[38];
 
       objects = (object *) ma_malloc(num_objects*sizeof(object),
                                      __FILE__, __LINE__);
@@ -366,6 +375,8 @@ void print_help_message(void)
    printf("--group_blocks - change the RCB algorithm so that a group of blocks with the same center all get put onto the same side of a cut\n");
    printf("--limit_move - limit the number of blocks that can be moved during load balance (number that is a percentage of the total number of blocks)\n");
    printf("--send_faces - send each face individually instead of packing all faces going to a rank together\n");
+   printf("--rcb - use RCB algorithm for load balancing (default)\n");
+   printf("--sfc - use Space Filling Curve algorithm for load balancing\n");
    printf("--num_objects - (>= 0) number of objects to cause refinement\n");
    printf("--object - type, position, movement, size, size rate of change\n");
 
@@ -420,9 +431,15 @@ void allocate(void)
       parents[n].number = -1;
 
    max_num_dots = 2*max_num_blocks;     // Guess at number needed
-   dots = (dot *) ma_malloc(max_num_dots*sizeof(dot), __FILE__, __LINE__);
-   for (n = 0; n < max_num_dots; n++)
-      dots[n].number = -1;
+   if (use_rcb) {
+      dots = (dot *) ma_malloc(max_num_dots*sizeof(dot), __FILE__, __LINE__);
+      for (n = 0; n < max_num_dots; n++)
+         dots[n].number = -1;
+   } else {
+      spots = (spot *) ma_malloc(max_num_dots*sizeof(spot), __FILE__, __LINE__);
+      for (n = 0; n < max_num_dots; n++)
+         spots[n].number = -1;
+   }
 
    grid_sum = (double *)ma_malloc(num_vars*sizeof(double), __FILE__, __LINE__);
 
@@ -529,8 +546,8 @@ void allocate(void)
    if (num_refine) {
       s_buf_size = (int) (0.10*((double)max_num_blocks))*comm_vars*
                    (x_block_size+2)*(y_block_size+2)*(z_block_size+2);
-      if (s_buf_size < (num_vars*x_block_size*y_block_size*z_block_size + 47))
-         s_buf_size = num_vars*x_block_size*y_block_size*z_block_size + 47;
+      if (s_buf_size < (num_vars*x_block_size*y_block_size*z_block_size + 49))
+         s_buf_size = num_vars*x_block_size*y_block_size*z_block_size + 49;
       r_buf_size = 5*s_buf_size;
    } else {
       i = init_block_x*(x_block_size+2);

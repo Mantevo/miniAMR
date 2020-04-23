@@ -99,6 +99,7 @@ void init_profile(void);
 
 // rcb.c
 void load_balance(void);
+void rcb(void);
 void exchange(double *, double *, double *);
 void sort(int, int, int);
 int factor(int, int *);
@@ -113,6 +114,12 @@ int refine_level(void);
 void reset_all(void);
 void reset_neighbors(void);
 void redistribute_blocks(double *, double *, double *, double *, int *, int);
+
+// sfc.c
+void sfc(void);
+void sfc_sort(int, int);
+void move_spots(int, int);
+void move_spots_back(void);
 
 // stencil.c
 void stencil_driver(int, int);

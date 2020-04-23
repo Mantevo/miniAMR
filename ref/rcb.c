@@ -33,6 +33,14 @@
 #include "timer.h"
 #include "proto.h"
 
+void load_balance(void)
+{
+   if (use_rcb)
+      rcb();
+   else
+      sfc();
+}
+
 // This file includes routines needed for load balancing.  Load balancing is
 // based on RCB.  At each stage, a direction and factor is chosen (factor is
 // based on the prime factorization of the number of processors) and the
@@ -45,7 +53,7 @@
 // blocks need to be coarsened - the coarsening routine determines which
 // blocks need to be coarsened and those blocks are moved to the processor
 // where their parent is.
-void load_balance(void)
+void rcb(void)
 {
    int npx1, npy1, npz1, nfac, fac[25], fact;
    int i, j, m, n, dir, in, mm[2][3], gmm[2][3], r[3], n_m_tmp, n_m_tot;
@@ -215,7 +223,7 @@ void exchange(double *tp, double *tm, double *tu)
    double t1, t2, t3, t4;
    MPI_Status status;
 
-   block_size = 47 + num_vars*num_cells;
+   block_size = 49 + num_vars*num_cells;
    type = 40;
    type1 = 41;
 
@@ -290,6 +298,8 @@ void exchange(double *tp, double *tm, double *tu)
                   if ((fp+1) > max_active_block)
                      max_active_block = fp + 1;
                   num_active++;
+                  if (num_active > local_max_b)
+                     local_max_b = num_active;
                   local_num_blocks[blocks[fp].level]++;
                   add_sorted_list(fp, blocks[fp].number, blocks[fp].level);
                   fp++;
@@ -677,7 +687,7 @@ void move_dots(int div, int fact)
    }
 }
 
-void move_dots_back()
+void move_dots_back(void)
 {
    int i, j, d, nr, err, which;
    int *send_int = (int *) send_buff;

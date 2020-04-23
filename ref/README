@@ -78,8 +78,18 @@ The list of arguments and their defaults is as follows:
 
    --reorder - ordering of blocks
       This controls whether the blocks are ordered by the RCB algorithm
-      or by a natural ordering of the processors.  The default is 1 which
-      selects the RCB ordering and the natural ordering is 0.
+      or by a natural ordering of the processors.  A setting of 1 selects
+      the RCB ordering and the natural ordering is 0.  The default depends
+      on which load balance algorithm is chosen.  If the RCB algorithm is
+      chosen then the default is the RCB ordering and if the space filling
+      curve algorithm is chosen then the default is the natural ordering.
+
+   --rcb or --sfc - chooses the algorithm for load balancing
+      These two options choose the load balance algorithm.  The Recursive
+      Coordinate Bisection (RCB) algorithm is the default, but the option
+      in included for completeness.  The other option is the Space Filling
+      Curve (SFC).  This option is based on a Morton style space filling
+      curve.
 
    --npx - number of processors in the x direction
    --npy - number of processors in the y direction
