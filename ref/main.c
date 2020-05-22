@@ -37,7 +37,7 @@
 int main(int argc, char** argv)
 {
    int i, ierr, object_num;
-   int params[39];
+   int params[38];
    double *objs;
 #include "param.h"
 
@@ -211,14 +211,15 @@ int main(int argc, char** argv)
       params[30] = nonblocking;
       params[31] = refine_ghost;
       params[32] = use_time;
-      params[33] = end_time;
-      params[34] = change_dir;
-      params[35] = group_blocks;
-      params[36] = limit_move;
-      params[37] = send_faces;
-      params[38] = use_rcb;
+      params[33] = change_dir;
+      params[34] = group_blocks;
+      params[35] = limit_move;
+      params[36] = send_faces;
+      params[37] = use_rcb;
 
-      MPI_Bcast(params, 39, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 38, MPI_INT, 0, MPI_COMM_WORLD);
+      if (use_time)
+         MPI_Bcast(&end_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       objs = (double *) ma_malloc(14*num_objects*sizeof(double),
                                   __FILE__, __LINE__);
@@ -242,7 +243,7 @@ int main(int argc, char** argv)
       MPI_Bcast(objs, (14*num_objects), MPI_DOUBLE, 0, MPI_COMM_WORLD);
       free(objs);
    } else {
-      MPI_Bcast(params, 39, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 38, MPI_INT, 0, MPI_COMM_WORLD);
       max_num_blocks = params[ 0];
       num_refine = params[ 1];
       uniform_refine = params[ 2];
@@ -276,12 +277,14 @@ int main(int argc, char** argv)
       nonblocking = params[30];
       refine_ghost = params[31];
       use_time = params[32];
-      end_time = params[33];
-      change_dir = params[34];
-      group_blocks = params[35];
-      limit_move = params[36];
-      send_faces = params[37];
-      use_rcb = params[38];
+      change_dir = params[33];
+      group_blocks = params[34];
+      limit_move = params[35];
+      send_faces = params[36];
+      use_rcb = params[37];
+      
+      if (use_time)
+         MPI_Bcast(&end_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       objects = (object *) ma_malloc(num_objects*sizeof(object),
                                      __FILE__, __LINE__);
