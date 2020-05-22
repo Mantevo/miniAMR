@@ -116,6 +116,7 @@ void driver(void)
          plot(ts);
       timer_plot += timer() - t3;
 
+      sim_time += delta;
       if (use_time) {
          delta = calc_time_step();
          if (sim_time >= end_time)
@@ -123,9 +124,6 @@ void driver(void)
       } else
          if (ts >= num_tsteps)
             done = 1;
-
-      if (!done)
-         sim_time += delta;
    }
 
    end_time = sim_time;
