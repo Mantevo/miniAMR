@@ -159,14 +159,10 @@ void sfc_sort(int div, int fact)
       }
    }
 
-
    for (j = 0; j < (fact-1); j++)
       // if extra is 0 we have a divider (the beginning of the next bin)
       if (!extra[j])
          divider[j] = p8[num_refine]*(divider[j]+1);
-      // if there are 8 in the bin, it is one block divided and we are done
-      else if (bin1[j] == 8) {
-         divider[j] = p8[num_refine]*divider[j] + (8-extra[j])*p8[num_refine-1];
       } else {
          for (i = 0; i < max_active_dot; i++)
             if (spots[i].number >= 0)
@@ -174,7 +170,7 @@ void sfc_sort(int div, int fact)
                   spots[i].new_proc = -1;
          base = p8[num_refine]*divider[j];
          // keep going down the tree until we can identify a divider
-         for (done = 0, level = 1; level < num_refine && !done; level++) {
+         for (done = 0, level = 1; level <= num_refine && !done; level++) {
             for (i = 0; i < 8; i++)
                bin[i] = 0;
             for (i = 0; i < max_active_dot; i++)
@@ -196,7 +192,7 @@ void sfc_sort(int div, int fact)
             if (!extra[j]) {
                divider[j] = base + (divider[j]+1)*p8[num_refine-level];
                done = 1;
-            } else if (bin1[j] == 8) {
+            } else if (bin1[j] == 8 && level == num_refine) {
                divider[j] = base + divider[j]*p8[num_refine-level] +
                             (8 - extra[j])*p8[num_refine-level-1];
                done = 1;
