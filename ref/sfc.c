@@ -163,7 +163,7 @@ void sfc_sort(int div, int fact)
       // if extra is 0 we have a divider (the beginning of the next bin)
       if (!extra[j])
          divider[j] = p8[num_refine]*(divider[j]+1);
-      } else {
+      else {
          for (i = 0; i < max_active_dot; i++)
             if (spots[i].number >= 0)
                if (spots[i].num_prime/p8[num_refine] == divider[j])
