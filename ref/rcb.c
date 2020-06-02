@@ -380,18 +380,6 @@ void sort(int div, int fact, int dir)
    }
 
    if (group_blocks) {
-      for (j = 0; j < (fact-1); j++) {
-         my_extra[j] = 0;
-         if (extra[j]) {
-            MPI_Scan(&bin[point[j]], &i, 1, MPI_INT, MPI_SUM, comms[div]);
-            if (i >= extra[j])
-               my_extra[j] = 0;
-            else if ((i + bin[point[j]]) <= extra[j])
-               my_extra[j] = bin[point[j]];
-            else
-               my_extra[j] = extra[j] - i;
-         }
-      }
       for (i = 0; i < max_active_dot; i++)
          if (dots[i].number >= 0) {
             for (j = 0; j < (fact-1); j++)
@@ -399,10 +387,9 @@ void sort(int div, int fact, int dir)
                   dots[i].new_proc = j;
                   break;
                } else if (dots[i].cen[dir] == point[j]) {
-                  if (my_extra[j]) {
+                  if (extra[j] > bin1[j]/2)
                      dots[i].new_proc = j + 1;
-                     my_extra[j]--;
-                  } else
+                  else
                      dots[i].new_proc = j;
                   break;
                }
