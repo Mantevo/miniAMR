@@ -40,7 +40,7 @@ void profile(void)
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
           total_fp_divs;
    object *op;
-   char *version = "1.6.3";
+   char *version = "1.6.4";
    FILE *fp;
 
    calculate_results();
@@ -205,8 +205,8 @@ void profile(void)
          fprintf(fp, "      x_unpack_faces_min: %lf\n", minimum[18]);
          fprintf(fp, "      x_unpack_faces_max: %lf\n", maximum[18]);
          fprintf(fp, "      x_comm_partners: %lf\n", average[117]);
-         fprintf(fp, "      x_comm_partners_min: %d\n", minimum[122]);
-         fprintf(fp, "      x_comm_partners_max: %d\n", maximum[127]);
+         fprintf(fp, "      x_comm_partners_min: %d\n", (int) minimum[122]);
+         fprintf(fp, "      x_comm_partners_max: %d\n", (int) maximum[127]);
          fprintf(fp, "      x_mess_recv_ave: %lf\n", average[80]);
          fprintf(fp, "      x_mess_recv_min: %lf\n", minimum[80]);
          fprintf(fp, "      x_mess_recv_max: %lf\n", maximum[80]);
@@ -263,8 +263,8 @@ void profile(void)
          fprintf(fp, "      y_unpack_faces_min: %lf\n", minimum[27]);
          fprintf(fp, "      y_unpack_faces_max: %lf\n", maximum[27]);
          fprintf(fp, "      y_comm_partners: %lf\n", average[118]);
-         fprintf(fp, "      y_comm_partners_min: %d\n", minimum[123]);
-         fprintf(fp, "      y_comm_partners_max: %d\n", maximum[128]);
+         fprintf(fp, "      y_comm_partners_min: %d\n", (int) minimum[123]);
+         fprintf(fp, "      y_comm_partners_max: %d\n", (int) maximum[128]);
          fprintf(fp, "      y_mess_recv_ave: %lf\n", average[89]);
          fprintf(fp, "      y_mess_recv_min: %lf\n", minimum[89]);
          fprintf(fp, "      y_mess_recv_max: %lf\n", maximum[89]);
@@ -321,8 +321,8 @@ void profile(void)
          fprintf(fp, "      z_unpack_faces_min: %lf\n", minimum[36]);
          fprintf(fp, "      z_unpack_faces_max: %lf\n", maximum[36]);
          fprintf(fp, "      z_comm_partners: %lf\n", average[119]);
-         fprintf(fp, "      z_comm_partners_min: %d\n", minimum[124]);
-         fprintf(fp, "      z_comm_partners_max: %d\n", maximum[129]);
+         fprintf(fp, "      z_comm_partners_min: %d\n", (int) minimum[124]);
+         fprintf(fp, "      z_comm_partners_max: %d\n", (int) maximum[129]);
          fprintf(fp, "      z_mess_recv_ave: %lf\n", average[98]);
          fprintf(fp, "      z_mess_recv_min: %lf\n", minimum[98]);
          fprintf(fp, "      z_mess_recv_max: %lf\n", maximum[98]);
@@ -366,8 +366,8 @@ void profile(void)
          fprintf(fp, "refine_time_max: %lf\n", maximum[42]);
          fprintf(fp, "   total_blocks_ts_ave: %lf\n",
                 ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)));
-         fprintf(fp, "   total_blocks_ts_min: %ld\n", (long long) nb_min);
-         fprintf(fp, "   total_blocks_ts_max: %ld\n", (long long) nb_max);
+         fprintf(fp, "   total_blocks_ts_min: %lld\n", (long long) nb_min);
+         fprintf(fp, "   total_blocks_ts_max: %lld\n", (long long) nb_max);
          fprintf(fp, "   blocks_split_ave: %lf\n", average[105]);
          fprintf(fp, "   blocks_split_min: %lf\n", minimum[105]);
          fprintf(fp, "   blocks_split_max: %lf\n", maximum[105]);
@@ -754,8 +754,8 @@ void profile(void)
          fprintf(fp, "     Number of refinement steps: %d\n\n", nrs);
          fprintf(fp, "     Number of load balance steps: %d\n\n", nlbs);
          fprintf(fp, "     Number of redistributing steps: %d\n\n", nrrs);
-         fprintf(fp, "     Total blocks           : %ld\n", total_blocks);
-         fprintf(fp, "     Blocks/timestep ave, min, max : %lf %ld %ld\n",
+         fprintf(fp, "     Total blocks           : %lld\n", total_blocks);
+         fprintf(fp, "     Blocks/timestep ave, min, max : %lf %lld %lld\n",
                 ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)),
                 (long long) nb_min, (long long) nb_max);
          fprintf(fp, "     Max blocks on a processor at any time: %d\n",
@@ -1133,8 +1133,8 @@ void profile(void)
          printf("     Number of refinement steps: %d\n\n", nrs);
          printf("     Number of load balance steps: %d\n\n", nlbs);
          printf("     Number of redistributing steps: %d\n\n", nrrs);
-         printf("     Total blocks           : %ld\n", total_blocks);
-         printf("     Blocks/timestep ave, min, max : %lf %ld %ld\n",
+         printf("     Total blocks           : %lld\n", total_blocks);
+         printf("     Blocks/timestep ave, min, max : %lf %lld %lld\n",
                 ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)),
                 (long long) nb_min, (long long) nb_max);
          printf("     Max blocks on a processor at any time: %d\n",
