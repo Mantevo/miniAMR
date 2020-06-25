@@ -446,7 +446,7 @@ void allocate(void)
 
    grid_sum = (double *)ma_malloc(num_vars*sizeof(double), __FILE__, __LINE__);
 
-   p8 = (int *) ma_malloc((num_refine+2)*sizeof(int), __FILE__, __LINE__);
+   p8 = (num_sz *) ma_malloc((num_refine+2)*sizeof(num_sz), __FILE__, __LINE__);
    p2 = (int *) ma_malloc((num_refine+2)*sizeof(int), __FILE__, __LINE__);
    block_start = (num_sz *) ma_malloc((num_refine+1)*sizeof(num_sz),
                                       __FILE__, __LINE__);
