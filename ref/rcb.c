@@ -257,10 +257,11 @@ void exchange(double *tp, double *tm, double *tu)
                MPI_Recv(&i, 1, MPI_INT, start[l], type1,
                         MPI_COMM_WORLD, &status);
                if (i) {
-                  while (sp < max_active_block && blocks[sp].number < 0 ||
-                         (blocks[sp].number >= 0 &&
-                            (blocks[sp].new_proc != start[l] ||
-                             blocks[sp].new_proc == my_pe)))
+                  while (sp < max_active_block &&
+                         (blocks[sp].number < 0 ||
+                          (blocks[sp].number >= 0 &&
+                           (blocks[sp].new_proc != start[l] ||
+                            blocks[sp].new_proc == my_pe))))
                      sp++;
                   t2 = timer();
                   pack_block(sp);
