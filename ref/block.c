@@ -71,7 +71,8 @@ void split_blocks(void)
                     (p2[level]*npx*init_block_x);
                xp = nl%(p2[level]*npx*init_block_x);
                if ((num_active + 8) > max_num_blocks) {
-                  printf("ERROR: Need more blocks %d %d on %d\n", num_active, max_num_blocks, my_pe);
+                  printf("ERROR: Need more blocks %d %d on %d\n",
+                         num_active, max_num_blocks, my_pe);
                   exit(-1);
                }
                if ((num_active + 8) > local_max_b)
@@ -118,7 +119,8 @@ void split_blocks(void)
                      if (blocks[m].number < 0)
                         break;
                   if (m == max_num_blocks) {
-                     printf("Error: No inactive blocks available %d %d %d\n", m, num_active, max_num_blocks);
+                     printf("Error: No inactive blocks available %d %d %d\n",
+                            m, num_active, max_num_blocks);
                      exit(-1);
                   }
                   if ((m+1) > max_active_block)
@@ -185,7 +187,7 @@ void split_blocks(void)
                         }
                   else if (bp->nei_level[c] == level-1) // level less parent
                      if (bp->nei[c][0][0] >= 0) { // error
-                        printf("%d ERROR: internal misconnect block %ld c %d\n",
+                        printf("%d ERROR: internal misconnect block %lld c %d\n",
                                my_pe, (long long) bp->number, c);
                         exit(-1);
                      } else {
@@ -208,7 +210,7 @@ void split_blocks(void)
                            k = -1 - fcase;
                            del_comm_list(dir, n, pe, k);
                         } else {
-                           printf("%d ERROR: connected block unrefined %ld dir %d\n",
+                           printf("%d ERROR: connected block unrefined %lld dir %d\n",
                                   my_pe, (long long) bp->number, c);
                            exit(-1);
                         }
@@ -288,7 +290,7 @@ void split_blocks(void)
                               del_comm_list(dir, n, pe, k);
                            }
                   } else {
-                     printf("%d ERROR: misconnected b %d %ld l %d nei[%d] %d\n",
+                     printf("%d ERROR: misconnected b %d %lld l %d nei[%d] %d\n",
                             my_pe, n, (long long) bp->number, level, c,
                             bp->nei_level[c]);
                      exit(-1);
@@ -384,15 +386,15 @@ void consolidate_blocks(void)
             bp->parent_node = pp->parent_node;
             bp->child_number = pp->child_number;
             if (bp->level)
-            if (bp->parent_node == my_pe)
-               parents[bp->parent].child[bp->child_number] = n;
-            // else communicate this change later
-            else if (pp->parent < -1) {
-               del_par_list(&par_b, (-2-bp->parent), (num_sz) (-1-p),
-                            bp->child_number, bp->parent_node);
-               add_par_list(&par_b, (-2-bp->parent), (num_sz) n,
-                            bp->child_number, bp->parent_node, 0);
-            }
+               if (bp->parent_node == my_pe)
+                  parents[bp->parent].child[bp->child_number] = n;
+               // else communicate this change later
+               else if (pp->parent < -1) {
+                  del_par_list(&par_b, (-2-bp->parent), (num_sz) (-1-p),
+                               bp->child_number, bp->parent_node);
+                  add_par_list(&par_b, (-2-bp->parent), (num_sz) n,
+                               bp->child_number, bp->parent_node, 0);
+               }
             add_sorted_list(n, bp->number, level);
             bp->refine = 0;
             bp->cen[0] = pp->cen[0];
@@ -543,10 +545,10 @@ void consolidate_blocks(void)
                                                   d*p2[num_refine-level]));
                               }
                            } else {
-                              printf("%d ERROR: misconnected con b %d %ld l %d nei[%d] %d other %d %d ol %d\n",
+                              printf("%d ERROR: misconnected con b %d %lld l %d nei[%d] %d other %d %lld ol %d\n",
                                      my_pe, n, (long long) bp->number, level,
                                      c, bp->nei_level[c], other,
-                                     blocks[other].number,
+                                     (long long) blocks[other].number,
                                      blocks[other].nei_level[c]);
                               exit(-1);
                            }
@@ -592,7 +594,7 @@ void consolidate_blocks(void)
                      (bp->cen[mul[dir][2]] + d*p2[num_refine-level]));
                bp->nei_level[c] = level;
             } else {
-               printf("%d ERROR: con nei block %d pe %d bad b %d %ld l %d %d\n",
+               printf("%d ERROR: con nei block %d pe %d bad b %d %lld l %d %d\n",
                       my_pe, c, pe, n, (long long) bp->number, level,
                       bp->nei_level[c]);
                exit(-1);
@@ -627,7 +629,7 @@ void del_sorted_list(num_sz number, int level, int from)
       if (number == sorted_list[i].number)
          break;
    if (number != sorted_list[i].number) {
-      printf("ERROR: del_sorted_list on %d - number %ld not found l %d f %d\n",
+      printf("ERROR: del_sorted_list on %d - number %lld not found l %d f %d\n",
              my_pe, (long long) number, level, from);
       exit(-1);
    }
@@ -646,7 +648,7 @@ int find_sorted_list(num_sz number, int level)
    for (i = sorted_index[level]; i < sorted_index[level+1]; i++)
       if (number == sorted_list[i].number)
          return sorted_list[i].n;
-   printf("ERROR: find_sorted_list on %d - number %ld not found\n",
+   printf("ERROR: find_sorted_list on %d - number %lld not found\n",
           my_pe, (long long) number);
    exit(-1);
 }
