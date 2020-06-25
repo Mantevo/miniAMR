@@ -187,11 +187,11 @@ void refine(int ts)
       else
          global_active += num_blocks[j];
       if (!my_pe && report_perf & 8)
-         printf("Number of blocks at level %d at timestep %d is %ld\n",
+         printf("Number of blocks at level %d at timestep %d is %lld\n",
                 j, ts, num_blocks[j]);
    }
    if (!my_pe && report_perf & 8)
-      printf("Total number of blocks at timestep %d is %ld\n", ts,
+      printf("Total number of blocks at timestep %d is %lld\n", ts,
              global_active);
    timer_refine_sy += timer() - t2;
    t4 += timer() - t2;
