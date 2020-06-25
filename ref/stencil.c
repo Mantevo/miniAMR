@@ -959,7 +959,6 @@ void stencil_27(int var)
 void stencil_check(int var)
 {
    int in, i, j, k, v;
-   double work[x_block_size+2][y_block_size+2][z_block_size+2];
    block *bp;
 
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
