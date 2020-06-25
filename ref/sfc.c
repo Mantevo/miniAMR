@@ -152,7 +152,7 @@ void sfc_sort(int div, int fact)
    for (sum = j = i = 0; i < max_bin && j < (fact-1); i++) {
       // find the bins that have the dividers
       sum += gbin[i];
-      while (sum >= (j+1)*part) {
+      while (sum >= (j+1)*part && j < (fact-1)) {
          bin1[j] = gbin[i];
          extra[j] = sum - (j+1)*part;
          divider[j++] = i;
