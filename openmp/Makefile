@@ -1,5 +1,5 @@
-CC   = cc
-LD   = cc
+CC   = mpicc
+LD   = mpicc
 CPPFLAGS = -I.
 CFLAGS = -O3 -fopenmp
 LDFLAGS =

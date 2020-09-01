@@ -82,16 +82,16 @@ void stencil_driver(int var, int cacl_stage)
 void stencil_calc(int var, int stencil_in)
 {
    int i, j, k, in;
-   double sb, sm, sf, work[x_block_size+2][y_block_size+2][z_block_size+2];
+   double sb, sm, sf;
    block *bp;
 
    int tid;
 
    if (stencil_in == 7) {
-#pragma omp parallel default(shared) private(i, j, k, bp)
-{
+#pragma omp parallel for default(shared) private(i, j, k, bp)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
+         double work[x_block_size+2][y_block_size+2][z_block_size+2];
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
@@ -107,15 +107,14 @@ void stencil_calc(int var, int stencil_in)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
 
       total_fp_divs += (double) num_active*num_cells;
       total_fp_adds += (double) 6*num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private (i, j, k, bp, sb, sm, sf)
-{
+#pragma omp parallel for default(shared) private (i, j, k, bp, sb, sm, sf)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
+         double work[x_block_size+2][y_block_size+2][z_block_size+2];
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++) {
@@ -153,7 +152,6 @@ void stencil_calc(int var, int stencil_in)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
 
       total_fp_divs += (double) num_active*num_cells;
       total_fp_adds += (double) 26*num_active*num_cells;
