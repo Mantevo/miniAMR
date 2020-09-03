@@ -5,7 +5,7 @@ CFLAGS = -O3 -fopenmp
 LDFLAGS =
 LDLIBS = -lm -lgomp
 
-EXEC = ma.x
+EXEC = miniAMR.x
 
 OBJS = block.o check_sum.o comm_block.o comm.o comm_parent.o comm_refine.o \
        comm_util.o driver.o init.o main.o move.o pack.o plot.o profile.o \
@@ -18,7 +18,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 clean:
-	rm *.o ma.x
+	rm *.o $(EXEC)
 
 # need dependencies
 

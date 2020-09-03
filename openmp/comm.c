@@ -76,25 +76,23 @@ void comm(int start, int num_comm, int stage)
 **** one large send buffer -- can pack and send for a neighbor and reuse */
       for (i = 0; i < num_comm_partners[dir]; i++) {
          t2 = timer();
-         assert(!"Run OpenMP only");
-//FIXME: removed until pack_face refactored
-//#pragma omp parallel for private (offset)
-//         for (n = 0; n < comm_num[dir][i]; n++) {
-//            offset = comm_send_off[dir][comm_index[dir][i]+n];
-//            pack_face(&send_buff[offset], comm_block[dir][comm_index[dir][i]+n],
-//                      comm_face_case[dir][comm_index[dir][i]+n], dir,
-//                      start, num_comm);
-//         }
-//         counter_face_send[dir] += comm_num[dir][i];
-//         t3 = timer();
-//         MPI_Isend(&send_buff[comm_send_off[dir][comm_index[dir][i]]],
-//                   send_size[dir][i], MPI_DOUBLE, comm_partner[dir][i],
-//                   type, MPI_COMM_WORLD, &s_req[i]);
-//         counter_halo_send[dir]++;
-//         size_mesg_send[dir] += (double) send_size[dir][i]*sizeof(double);
-//         t4 = timer();
-//         timer_comm_pack[dir] += t3 - t2;
-//         timer_comm_send[dir] += t4 - t3;
+#pragma omp parallel for private (offset)
+         for (n = 0; n < comm_num[dir][i]; n++) {
+            offset = comm_send_off[dir][comm_index[dir][i]+n];
+            pack_face(&send_buff[offset], comm_block[dir][comm_index[dir][i]+n],
+                      comm_face_case[dir][comm_index[dir][i]+n], dir,
+                      start, num_comm);
+         }
+         counter_face_send[dir] += comm_num[dir][i];
+         t3 = timer();
+         MPI_Isend(&send_buff[comm_send_off[dir][comm_index[dir][i]]],
+                   send_size[dir][i], MPI_DOUBLE, comm_partner[dir][i],
+                   type, MPI_COMM_WORLD, &s_req[i]);
+         counter_halo_send[dir]++;
+         size_mesg_send[dir] += (double) send_size[dir][i]*sizeof(double);
+         t4 = timer();
+         timer_comm_pack[dir] += t3 - t2;
+         timer_comm_send[dir] += t4 - t3;
       }
 
       // While values are being sent over the mesh, go through and direct
@@ -102,10 +100,9 @@ void comm(int start, int num_comm, int stage)
       // processor.  Also apply boundary conditions for boundary of domain.
       time1 = time2 = time3 = 0.0;
       c1 = c2 = c3 = 0;
-#ifndef TASK1
+
 #pragma omp parallel for private (n, bp, l, m, i, j, k, t2, time1, time2, \
                                   time3) reduction (+: c1, c2, c3)
-#endif
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[n = sorted_list[in].n];
          for (l = dir*2; l < (dir*2 + 2); l++) {
@@ -159,18 +156,16 @@ void comm(int start, int num_comm, int stage)
          t2 = timer();
          MPI_Waitany(num_comm_partners[dir], request, &which, &status);
          t3 = timer();
-         assert(!"Run OpenMP only");
-//FIXME: code removed until unpack_face refactored
-//#pragma omp parallel for
-//         for (n = 0; n < comm_num[dir][which]; n++)
-//          unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][which]+n]],
-//                      comm_block[dir][comm_index[dir][which]+n],
-//                      comm_face_case[dir][comm_index[dir][which]+n],
-//                      dir, start, num_comm);
-//         counter_face_recv[dir] += comm_num[dir][which];
-//         t4 = timer();
-//         timer_comm_wait[dir] += t3 - t2;
-//         timer_comm_unpack[dir] += t4 - t3;
+#pragma omp parallel for
+         for (n = 0; n < comm_num[dir][which]; n++)
+          unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][which]+n]],
+                      comm_block[dir][comm_index[dir][which]+n],
+                      comm_face_case[dir][comm_index[dir][which]+n],
+                      dir, start, num_comm);
+         counter_face_recv[dir] += comm_num[dir][which];
+         t4 = timer();
+         timer_comm_wait[dir] += t3 - t2;
+         timer_comm_unpack[dir] += t4 - t3;
       }
 
       t2 = timer();
@@ -182,1341 +177,1343 @@ void comm(int start, int num_comm, int stage)
    }
 }
 
-//FIXME: refactoring pending for MPI part
 // Pack face to send - note different cases for different directions.
-//void pack_face(double *send_buf, int block_num, int face_case, int dir,
-//               int start, int num_comm)
-//{
-//   int i, j, k, n, m;
-//   int is, ie, js, je, ks, ke;
-//   block *bp;
-//
-//   bp = &blocks[block_num];
-//
-//   if (!code) {
-//
-//      if (dir == 0) {        /* X - East, West */
-//
-//         /* X directions (East and West) sent first, so just send
-//            the real values and no ghosts
-//         */
-//         if (face_case >= 10) { /* +X - East */
-//            i = x_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -X - West */
-//            i = 1;
-//         typedef double (*block2D_t)[z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 1; j <= y_block_size; j++)
-//                  for (k = 1; k <= z_block_size; k++, n++)
-//                     send_buf[n] = array[j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face - case does not matter */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 1; j < y_block_size; j += 2)
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j  ][k  ] +
-//                                   array[j  ][k+1] +
-//                                   array[j+1][k  ] +
-//                                   array[j+1][k+1];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               js = 1;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 1;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = js; j <= je; j++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     send_buf[n] = array[j][k]/4.0;
-//            }
-//         }
-//
-//      } else if (dir == 1) { /* Y - North, South */
-//
-//         /* Y directions (North and South) sent second, so send the real values
-//         */
-//         if (face_case >= 10) { /* +Y - North */
-//            j = y_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -Y - South */
-//            j = 1;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case == 0) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i <= x_block_size; i++)
-//                  for (k = 1; k <= z_block_size; k++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case == 1) {
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (k = 1; k <= z_block_size; k++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face - case does not matter */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i < x_block_size; i += 2)
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i  ][j][k  ] +
-//                                   array[i  ][j][k+1] +
-//                                   array[i+1][j][k  ] +
-//                                   array[i+1][j][k+1];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               is = 1;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 1;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     send_buf[n] = array[i][j][k]/4.0;
-//            }
-//         }
-//
-//      } else {               /* Z - Up, Down */
-//
-//         /* Z directions (Up and Down) sent last
-//         */
-//         if (face_case >= 10) { /* +Z - Up */
-//            k = z_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -Z - Down */
-//            k = 1;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case == 0) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i <= x_block_size; i++)
-//                  for (j = 1; j <= y_block_size; j++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case == 1) {
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (j = 0; j <= y_block_size+1; j++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face - case does not matter */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i < x_block_size; i += 2)
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i  ][j  ][k] +
-//                                   array[i  ][j+1][k] +
-//                                   array[i+1][j  ][k] +
-//                                   array[i+1][j+1][k];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               is = 1;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               js = 1;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (j = js; j <= je; j++, n++)
-//                     send_buf[n] = array[i][j][k]/4.0;
-//            }
-//         }
-//      }
-//
-//   } else if (code == 1) { /* send all ghosts */
-//
-//      if (dir == 0) {        /* X - East, West */
-//
-//         if (face_case >= 10) { /* +X - East */
-//            i = x_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -X - West */
-//            i = 1;
-//         typedef double (*block2D_t)[z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 0; j <= y_block_size+1; j++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     send_buf[n] = array[j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               if (face_case%2 == 0) {
-//                  j = 0;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j][k  ] +
-//                                   array[j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//               }
-//               for (j = 1; j < y_block_size; j += 2) {
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[j  ][k] +
-//                                     array[j+1][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j  ][k  ] +
-//                                   array[j  ][k+1] +
-//                                   array[j+1][k  ] +
-//                                   array[j+1][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[j  ][k] +
-//                                     array[j+1][k];
-//                  }
-//               }
-//               if (face_case%2 == 1) {
-//                  j = y_block_size + 1;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j][k  ] +
-//                                   array[j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//               }
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               js = 0;
-//               je = y_block_half + 1;
-//            } else {
-//               js = y_block_half;
-//               je = y_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 0;
-//               ke = z_block_half + 1;
-//            } else {
-//               ks = z_block_half;
-//               ke = z_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = js; j <= je; j++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     send_buf[n] = array[j][k]/4.0;
-//            }
-//         }
-//
-//      } else if (dir == 1) { /* Y - North, South */
-//
-//         if (face_case >= 10) { /* +Y - North */
-//            j = y_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -Y - South */
-//            j = 1;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               if (face_case%2 == 0) {
-//                  i = 0;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i][j][k  ] +
-//                                   array[i][j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//               for (i = 1; i < x_block_size; i += 2) {
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i  ][j][k  ] +
-//                                   array[i  ][j][k+1] +
-//                                   array[i+1][j][k  ] +
-//                                   array[i+1][j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//               }
-//               if (face_case%2 == 1) {
-//                  i = x_block_size + 1;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i][j][k  ] +
-//                                   array[i][j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               is = 0;
-//               ie = x_block_half + 1;
-//            } else {
-//               is = x_block_half;
-//               ie = x_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 0;
-//               ke = z_block_half + 1;
-//            } else {
-//               ks = z_block_half;
-//               ke = z_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     send_buf[n] = array[i][j][k]/4.0;
-//            }
-//         }
-//
-//      } else {               /* Z - Up, Down */
-//
-//         /* Z directions (Up and Down) sent last
-//         */
-//         if (face_case >= 10) { /* +Z - Up */
-//            k = z_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -Z - Down */
-//            k = 1;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (j = 0; j <= y_block_size+1; j++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face - case does not matter */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               if (face_case%2 == 0) {
-//                  i = 0;
-//                  if ((face_case/2)%2 == 1) {
-//                     j = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i][j  ][k] +
-//                                   array[i][j+1][k];
-//                  if ((face_case/2)%2 == 0) {
-//                     j = y_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//               for (i = 1; i < x_block_size; i += 2) {
-//                  if ((face_case/2)%2 == 1) {
-//                     j = 0;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i  ][j  ][k] +
-//                                   array[i  ][j+1][k] +
-//                                   array[i+1][j  ][k] +
-//                                   array[i+1][j+1][k];
-//                  if ((face_case/2)%2 == 0) {
-//                     j = y_block_size + 1;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//               }
-//               if (face_case%2 == 1) {
-//                  i = x_block_size + 1;
-//                  if ((face_case/2)%2 == 1) {
-//                     j = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i][j  ][k] +
-//                                   array[i][j+1][k];
-//                  if ((face_case/2)%2 == 0) {
-//                     j = y_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               is = 0;
-//               ie = x_block_half + 1;
-//            } else {
-//               is = x_block_half;
-//               ie = x_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               js = 0;
-//               je = y_block_half + 1;
-//            } else {
-//               js = y_block_half;
-//               je = y_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (j = js; j <= je; j++, n++)
-//                     send_buf[n] = array[i][j][k]/4.0;
-//            }
-//         }
-//      }
-//
-//   } else { /* code == 2 send all ghosts and do all processing on send side */
-//
-//      if (dir == 0) {        /* X - East, West */
-//
-//         if (face_case >= 10) { /* +X - East */
-//            i = x_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -X - West */
-//            i = 1;
-//         typedef double (*block2D_t)[z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 0; j <= y_block_size+1; j++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     send_buf[n] = array[j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               if (face_case%2 == 0) {
-//                  j = 0;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j][k  ] +
-//                                   array[j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//               }
-//               for (j = 1; j < y_block_size; j += 2) {
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[j  ][k] +
-//                                     array[j+1][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j  ][k  ] +
-//                                   array[j  ][k+1] +
-//                                   array[j+1][k  ] +
-//                                   array[j+1][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[j  ][k] +
-//                                     array[j+1][k];
-//                  }
-//               }
-//               if (face_case%2 == 1) {
-//                  j = y_block_size + 1;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[j][k  ] +
-//                                   array[j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[j][k];
-//                  }
-//               }
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               js = 1;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 1;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               j = js - 1;
-//               k = ks - 1;
-//               send_buf[n++] = array[j][k]/4.0;
-//               for (k = ks; k <= ke; k++, n+=2)
-//                  send_buf[n] = send_buf[n+1] = array[j][k]/4.0;
-//               k = ke + 1;
-//               send_buf[n++] = array[j][k]/4.0;
-//               for (j = js; j <= je; j++) {
-//                  k = ks - 1;
-//                  send_buf[n++] = array[j][k]/4.0;
-//                  for (k = ks; k <= ke; k++, n+=2)
-//                     send_buf[n] = send_buf[n+1] = array[j][k]/4.0;
-//                  k = ke + 1;
-//                  send_buf[n++] = array[j][k]/4.0;
-//                  k = ks - 1;
-//                  send_buf[n++] = array[j][k]/4.0;
-//                  for (k = ks; k <= ke; k++, n+=2)
-//                     send_buf[n] = send_buf[n+1] = array[j][k]/4.0;
-//                  k = ke + 1;
-//                  send_buf[n++] = array[j][k]/4.0;
-//               }
-//               j = je + 1;
-//               k = ks - 1;
-//               send_buf[n++] = array[j][k]/4.0;
-//               for (k = ks; k <= ke; k++, n+=2)
-//                  send_buf[n] = send_buf[n+1] = array[j][k]/4.0;
-//               k = ke + 1;
-//               send_buf[n++] = array[j][k]/4.0;
-//            }
-//         }
-//
-//      } else if (dir == 1) { /* Y - North, South */
-//
-//         if (face_case >= 10) { /* +Y - North */
-//            j = y_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -Y - South */
-//            j = 1;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               if (face_case%2 == 0) {
-//                  i = 0;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i][j][k  ] +
-//                                   array[i][j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//               for (i = 1; i < x_block_size; i += 2) {
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i  ][j][k  ] +
-//                                   array[i  ][j][k+1] +
-//                                   array[i+1][j][k  ] +
-//                                   array[i+1][j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//               }
-//               if (face_case%2 == 1) {
-//                  i = x_block_size + 1;
-//                  if ((face_case/2)%2 == 1) {
-//                     k = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     send_buf[n] = array[i][j][k  ] +
-//                                   array[i][j][k+1];
-//                  if ((face_case/2)%2 == 0) {
-//                     k = z_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               is = 1;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 1;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               i = is - 1;
-//               k = ks - 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//               for (k = ks; k <= ke; k++, n+=2)
-//                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//               k = ke + 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//               for (i = is; i <= ie; i++) {
-//                  k = ks - 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//                  for (k = ks; k <= ke; k++, n+=2)
-//                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//                  k = ke + 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//                  k = ks - 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//                  for (k = ks; k <= ke; k++, n+=2)
-//                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//                  k = ke + 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//               }
-//               i = ie + 1;
-//               k = ks - 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//               for (k = ks; k <= ke; k++, n+=2)
-//                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//               k = ke + 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//            }
-//         }
-//
-//      } else {               /* Z - Up, Down */
-//
-//         /* Z directions (Up and Down) sent last
-//         */
-//         if (face_case >= 10) { /* +Z - Up */
-//            k = z_block_size;
-//            face_case = face_case - 10;
-//         } else                 /* -Z - Down */
-//            k = 1;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (j = 0; j <= y_block_size+1; j++, n++)
-//                     send_buf[n] = array[i][j][k];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face - case does not matter */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               if (face_case%2 == 0) {
-//                  i = 0;
-//                  if ((face_case/2)%2 == 1) {
-//                     j = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i][j  ][k] +
-//                                   array[i][j+1][k];
-//                  if ((face_case/2)%2 == 0) {
-//                     j = y_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//               for (i = 1; i < x_block_size; i += 2) {
-//                  if ((face_case/2)%2 == 1) {
-//                     j = 0;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i  ][j  ][k] +
-//                                   array[i  ][j+1][k] +
-//                                   array[i+1][j  ][k] +
-//                                   array[i+1][j+1][k];
-//                  if ((face_case/2)%2 == 0) {
-//                     j = y_block_size + 1;
-//                     send_buf[n++] = array[i  ][j][k] +
-//                                     array[i+1][j][k];
-//                  }
-//               }
-//               if (face_case%2 == 1) {
-//                  i = x_block_size + 1;
-//                  if ((face_case/2)%2 == 1) {
-//                     j = 0;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     send_buf[n] = array[i][j  ][k] +
-//                                   array[i][j+1][k];
-//                  if ((face_case/2)%2 == 0) {
-//                     j = y_block_size + 1;
-//                     send_buf[n++] = array[i][j][k];
-//                  }
-//               }
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to send */
-//            if (face_case%2 == 0) {
-//               is = 1;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               js = 1;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               i = is - 1;
-//               j = js - 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//               for (j = js; j <= je; j++, n+=2)
-//                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//               j = je + 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//               for (i = is; i <= ie; i++) {
-//                  j = js - 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//                  for (j = js; j <= je; j++, n+=2)
-//                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//                  j = je + 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//                  j = js - 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//                  for (j = js; j <= je; j++, n+=2)
-//                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//                  j = je + 1;
-//                  send_buf[n++] = array[i][j][k]/4.0;
-//               }
-//               i = ie + 1;
-//               j = js - 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//               for (j = js; j <= je; j++, n+=2)
-//                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
-//               j = je + 1;
-//               send_buf[n++] = array[i][j][k]/4.0;
-//            }
-//         }
-//      }
-//   }
-//}
-//
-//// Unpack ghost values that have been recieved.
-//// The sense of the face case is reversed since we are receiving what was sent
-//void unpack_face(double *recv_buf, int block_num, int face_case, int dir,
-//                 int start, int num_comm)
-//{
-//   int i, j, k, n, m;
-//   int is, ie, js, je, ks, ke;
-//   block *bp;
-//
-//   bp = &blocks[block_num];
-//
-//   if (!code) {
-//
-//      if (dir == 0) {        /* X - East, West */
-//
-//         /* X directions (East and West)
-//            just recv the real values and no ghosts
-//            face_case based on send - so reverse
-//         */
-//         if (face_case >= 10) { /* +X - from East */
-//            i = x_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -X - from West */
-//            i = 0;
-//         typedef double (*block2D_t)[z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 1; j <= y_block_size; j++)
-//                  for (k = 1; k <= z_block_size; k++, n++)
-//                     array[j][k] = recv_buf[n];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face - one case */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 1; j < y_block_size; j += 2)
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     array[j  ][k  ] =
-//                     array[j  ][k+1] =
-//                     array[j+1][k  ] =
-//                     array[j+1][k+1] = recv_buf[n];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to recv */
-//            if (face_case%2 == 0) {
-//               js = 1;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 1;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = js; j <= je; j++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     array[j][k] = recv_buf[n];
-//            }
-//         }
-//
-//      } else if (dir == 1) { /* Y - North, South */
-//
-//         /* Y directions (North and South) sent second, so recv the real values
-//         */
-//         if (face_case >= 10) { /* +Y - from North */
-//            j = y_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -Y - from South */
-//            j = 0;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case == 0) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i <= x_block_size; i++)
-//                  for (k = 1; k <= z_block_size; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else if (face_case == 1) {
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (k = 1; k <= z_block_size; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* one case - recv into 4 cells per cell sent */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i < x_block_size; i += 2)
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     array[i  ][j][k  ] =
-//                     array[i  ][j][k+1] =
-//                     array[i+1][j][k  ] =
-//                     array[i+1][j][k+1] = recv_buf[n];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* whole face -> quarter face - determine case */
-//            if (face_case%2 == 0) {
-//               is = 1;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 1;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         }
-//
-//      } else {               /* Z - Up, Down */
-//
-//         /* Z directions (Up and Down) sent last
-//         */
-//         if (face_case >= 10) { /* +Z - from Up */
-//            k = z_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -Z - from Down */
-//            k = 0;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case == 0) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i <= x_block_size; i++)
-//                  for (j = 1; j <= y_block_size; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else if (face_case == 1) {
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (j = 0; j <= y_block_size+1; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* one case - receive into 4 cells */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 1; i < x_block_size; i += 2)
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     array[i  ][j  ][k] =
-//                     array[i  ][j+1][k] =
-//                     array[i+1][j  ][k] =
-//                     array[i+1][j+1][k] = recv_buf[n];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* whole face -> quarter face - determine case */
-//            if (face_case%2 == 0) {
-//               is = 1;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               js = 1;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (j = js; j <= je; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         }
-//      }
-//
-//   } else if (code == 1) {  /* send ghosts */
-//
-//      if (dir == 0) {        /* X - East, West */
-//
-//         if (face_case >= 10) { /* +X - from East */
-//            i = x_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -X - from West */
-//            i = 0;
-//         typedef double (*block2D_t)[z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 0; j <= y_block_size+1; j++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     array[j][k] = recv_buf[n];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               j = 0;
-//               k = 0;
-//               array[j][k] = recv_buf[n++];
-//               for (k = 1; k < z_block_size; k += 2, n++)
-//                  array[j][k  ] =
-//                  array[j][k+1] = recv_buf[n];
-//               k = z_block_size + 1;
-//               array[j][k] = recv_buf[n++];
-//               for (j = 1; j < y_block_size; j += 2) {
-//                  k = 0;
-//                  array[j  ][k] =
-//                  array[j+1][k] = recv_buf[n++];
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     array[j  ][k  ] =
-//                     array[j  ][k+1] =
-//                     array[j+1][k  ] =
-//                     array[j+1][k+1] = recv_buf[n];
-//                  k = z_block_size + 1;
-//                  array[j  ][k] =
-//                  array[j+1][k] = recv_buf[n++];
-//               }
-//               j = y_block_size + 1;
-//               k = 0;
-//               array[j][k] = recv_buf[n++];
-//               for (k = 1; k < z_block_size; k += 2, n++)
-//                  array[j][k  ] =
-//                  array[j][k+1] = recv_buf[n];
-//               k = z_block_size + 1;
-//               array[j][k] = recv_buf[n++];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to recv */
-//            if (face_case%2 == 0) {
-//               js = 0;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 0;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = js; j <= je; j++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     array[j][k] = recv_buf[n];
-//            }
-//         }
-//
-//      } else if (dir == 1) { /* Y - North, South */
-//
-//         if (face_case >= 10) { /* +Y - from North */
-//            j = y_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -Y - from South */
-//            j = 0;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               i = 0;
-//               k = 0;
-//               array[i][j][k] = recv_buf[n++];
-//               for (k = 1; k < z_block_size; k += 2, n++)
-//                  array[i][j][k  ] =
-//                  array[i][j][k+1] = recv_buf[n];
-//               k = z_block_size + 1;
-//               array[i][j][k] = recv_buf[n++];
-//               for (i = 1; i < x_block_size; i += 2) {
-//                  k = 0;
-//                  array[i  ][j][k] =
-//                  array[i+1][j][k] = recv_buf[n++];
-//                  for (k = 1; k < z_block_size; k += 2, n++)
-//                     array[i  ][j][k  ] =
-//                     array[i  ][j][k+1] =
-//                     array[i+1][j][k  ] =
-//                     array[i+1][j][k+1] = recv_buf[n];
-//                  k = z_block_size + 1;
-//                  array[i  ][j][k] =
-//                  array[i+1][j][k] = recv_buf[n++];
-//               }
-//               i = x_block_size + 1;
-//               k = 0;
-//               array[i][j][k] = recv_buf[n++];
-//               for (k = 1; k < z_block_size; k += 2, n++)
-//                  array[i][j][k  ] =
-//                  array[i][j][k+1] = recv_buf[n];
-//               k = z_block_size + 1;
-//               array[i][j][k] = recv_buf[n++];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* whole face -> quarter face - determine case */
-//            if (face_case%2 == 0) {
-//               is = 0;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 0;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         }
-//
-//      } else {               /* Z - Up, Down */
-//
-//         if (face_case >= 10) { /* +Z - from Up */
-//            k = z_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -Z - from Down */
-//            k = 0;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case < 2) {        /* whole face -> whole face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (j = 0; j <= y_block_size+1; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else if (face_case >= 2 && face_case <= 5) {
-//            /* whole face -> quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               i = 0;
-//               j = 0;
-//               array[i][j][k] = recv_buf[n++];
-//               for (j = 1; j < y_block_size; j += 2, n++)
-//                  array[i][j  ][k] =
-//                  array[i][j+1][k] = recv_buf[n];
-//               j = y_block_size + 1;
-//               array[i][j][k] = recv_buf[n++];
-//               for (i = 1; i < x_block_size; i += 2) {
-//                  j = 0;
-//                  array[i  ][j][k] =
-//                  array[i+1][j][k] = recv_buf[n++];
-//                  for (j = 1; j < y_block_size; j += 2, n++)
-//                     array[i  ][j  ][k] =
-//                     array[i  ][j+1][k] =
-//                     array[i+1][j  ][k] =
-//                     array[i+1][j+1][k] = recv_buf[n];
-//                  j = y_block_size + 1;
-//                  array[i  ][j][k] =
-//                  array[i+1][j][k] = recv_buf[n++];
-//               }
-//               i = x_block_size + 1;
-//               j = 0;
-//               array[i][j][k] = recv_buf[n++];
-//               for (j = 1; j < y_block_size; j += 2, n++)
-//                  array[i][j  ][k] =
-//                  array[i][j+1][k] = recv_buf[n];
-//               j = y_block_size + 1;
-//               array[i][j][k] = recv_buf[n++];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* whole face -> quarter face - determine case */
-//            if (face_case%2 == 0) {
-//               is = 0;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               js = 0;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (j = js; j <= je; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         }
-//      }
-//
-//   } else {  /* code == 2 send ghosts and process on send */
-//
-//      if (dir == 0) {        /* X - East, West */
-//
-//         if (face_case >= 10) { /* +X - from East */
-//            i = x_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -X - from West */
-//            i = 0;
-//         typedef double (*block2D_t)[z_block_size+2];
-//         if (face_case <= 5) {        /* whole face -> whole or quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = 0; j <= y_block_size+1; j++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     array[j][k] = recv_buf[n];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* four cases - figure out which quarter of face to recv */
-//            if (face_case%2 == 0) {
-//               js = 0;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 0;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block2D_t array = (block2D_t)&bp->array[m][i];
-//               for (j = js; j <= je; j++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     array[j][k] = recv_buf[n];
-//            }
-//         }
-//
-//      } else if (dir == 1) { /* Y - North, South */
-//
-//         if (face_case >= 10) { /* +Y - from North */
-//            j = y_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -Y - from South */
-//            j = 0;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case <= 5) {        /* whole face -> whole or quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (k = 0; k <= z_block_size+1; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* whole face -> quarter face - determine case */
-//            if (face_case%2 == 0) {
-//               is = 0;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               ks = 0;
-//               ke = z_block_half;
-//            } else {
-//               ks = z_block_half + 1;
-//               ke = z_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (k = ks; k <= ke; k++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         }
-//
-//      } else {               /* Z - Up, Down */
-//
-//         if (face_case >= 10) { /* +Z - from Up */
-//            k = z_block_size + 1;
-//            face_case = face_case - 10;
-//         } else                 /* -Z - from Down */
-//            k = 0;
-//         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
-//         if (face_case <= 5) {        /* whole face -> whole or quarter face */
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = 0; i <= x_block_size+1; i++)
-//                  for (j = 0; j <= y_block_size+1; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         } else {                     /* quarter face -> whole face */
-//            /* whole face -> quarter face - determine case */
-//            if (face_case%2 == 0) {
-//               is = 0;
-//               ie = x_block_half;
-//            } else {
-//               is = x_block_half + 1;
-//               ie = x_block_size + 1;
-//            }
-//            if ((face_case/2)%2 == 1) {
-//               js = 0;
-//               je = y_block_half;
-//            } else {
-//               js = y_block_half + 1;
-//               je = y_block_size + 1;
-//            }
-//            for (n = 0, m = start; m < start+num_comm; m++) {
-//               block3D_t array = (block3D_t)bp->array[m];
-//               for (i = is; i <= ie; i++)
-//                  for (j = js; j <= je; j++, n++)
-//                     array[i][j][k] = recv_buf[n];
-//            }
-//         }
-//      }
-//   }
-//}
+void pack_face(double *send_buf, int block_num, int face_case, int dir,
+               int start, int num_comm)
+{
+   int i, j, k, n, m;
+   int is, ie, js, je, ks, ke;
+   block *bp;
+
+   bp = &blocks[block_num];
+
+   typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+
+   if (!code) {
+
+      if (dir == 0) {        /* X - East, West */
+
+         /* X directions (East and West) sent first, so just send
+            the real values and no ghosts
+         */
+         if (face_case >= 10) { /* +X - East */
+            i = x_block_size;
+            face_case = face_case - 10;
+         } else                 /* -X - West */
+            i = 1;
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 1; j <= y_block_size; j++)
+                  for (k = 1; k <= z_block_size; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face - case does not matter */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 1; j < y_block_size; j += 2)
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j  ][k  ] +
+                                   array[i][j  ][k+1] +
+                                   array[i][j+1][k  ] +
+                                   array[i][j+1][k+1];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               js = 1;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 1;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = js; j <= je; j++)
+                  for (k = ks; k <= ke; k++, n++)
+                     send_buf[n] = array[i][j][k]/4.0;
+            }
+         }
+
+      } else if (dir == 1) { /* Y - North, South */
+
+         /* Y directions (North and South) sent second, so send the real values
+         */
+         if (face_case >= 10) { /* +Y - North */
+            j = y_block_size;
+            face_case = face_case - 10;
+         } else                 /* -Y - South */
+            j = 1;
+
+         if (face_case == 0) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i <= x_block_size; i++)
+                  for (k = 1; k <= z_block_size; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case == 1) {
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (k = 1; k <= z_block_size; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face - case does not matter */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i < x_block_size; i += 2)
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i  ][j][k  ] +
+                                   array[i  ][j][k+1] +
+                                   array[i+1][j][k  ] +
+                                   array[i+1][j][k+1];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               is = 1;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 1;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (k = ks; k <= ke; k++, n++)
+                     send_buf[n] = array[i][j][k]/4.0;
+            }
+         }
+
+      } else {               /* Z - Up, Down */
+
+         /* Z directions (Up and Down) sent last
+         */
+         if (face_case >= 10) { /* +Z - Up */
+            k = z_block_size;
+            face_case = face_case - 10;
+         } else                 /* -Z - Down */
+            k = 1;
+
+         if (face_case == 0) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i <= x_block_size; i++)
+                  for (j = 1; j <= y_block_size; j++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case == 1) {
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (j = 0; j <= y_block_size+1; j++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face - case does not matter */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i < x_block_size; i += 2)
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i  ][j  ][k] +
+                                   array[i  ][j+1][k] +
+                                   array[i+1][j  ][k] +
+                                   array[i+1][j+1][k];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               is = 1;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               js = 1;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (j = js; j <= je; j++, n++)
+                     send_buf[n] = array[i][j][k]/4.0;
+            }
+         }
+      }
+
+   } else if (code == 1) { /* send all ghosts */
+
+      if (dir == 0) {        /* X - East, West */
+
+         if (face_case >= 10) { /* +X - East */
+            i = x_block_size;
+            face_case = face_case - 10;
+         } else                 /* -X - West */
+            i = 1;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 0; j <= y_block_size+1; j++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               if (face_case%2 == 0) {
+                  j = 0;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+               for (j = 1; j < y_block_size; j += 2) {
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j  ][k] +
+                                     array[i][j+1][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j  ][k  ] +
+                                   array[i][j  ][k+1] +
+                                   array[i][j+1][k  ] +
+                                   array[i][j+1][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j  ][k] +
+                                     array[i][j+1][k];
+                  }
+               }
+               if (face_case%2 == 1) {
+                  j = y_block_size + 1;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               js = 0;
+               je = y_block_half + 1;
+            } else {
+               js = y_block_half;
+               je = y_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 0;
+               ke = z_block_half + 1;
+            } else {
+               ks = z_block_half;
+               ke = z_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = js; j <= je; j++)
+                  for (k = ks; k <= ke; k++, n++)
+                     send_buf[n] = array[i][j][k]/4.0;
+            }
+         }
+
+      } else if (dir == 1) { /* Y - North, South */
+
+         if (face_case >= 10) { /* +Y - North */
+            j = y_block_size;
+            face_case = face_case - 10;
+         } else                 /* -Y - South */
+            j = 1;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               if (face_case%2 == 0) {
+                  i = 0;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+               for (i = 1; i < x_block_size; i += 2) {
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i  ][j][k  ] +
+                                   array[i  ][j][k+1] +
+                                   array[i+1][j][k  ] +
+                                   array[i+1][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+               }
+               if (face_case%2 == 1) {
+                  i = x_block_size + 1;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               is = 0;
+               ie = x_block_half + 1;
+            } else {
+               is = x_block_half;
+               ie = x_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 0;
+               ke = z_block_half + 1;
+            } else {
+               ks = z_block_half;
+               ke = z_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (k = ks; k <= ke; k++, n++)
+                     send_buf[n] = array[i][j][k]/4.0;
+            }
+         }
+
+      } else {               /* Z - Up, Down */
+
+         /* Z directions (Up and Down) sent last
+         */
+         if (face_case >= 10) { /* +Z - Up */
+            k = z_block_size;
+            face_case = face_case - 10;
+         } else                 /* -Z - Down */
+            k = 1;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (j = 0; j <= y_block_size+1; j++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face - case does not matter */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               if (face_case%2 == 0) {
+                  i = 0;
+                  if ((face_case/2)%2 == 1) {
+                     j = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i][j  ][k] +
+                                   array[i][j+1][k];
+                  if ((face_case/2)%2 == 0) {
+                     j = y_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+               for (i = 1; i < x_block_size; i += 2) {
+                  if ((face_case/2)%2 == 1) {
+                     j = 0;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i  ][j  ][k] +
+                                   array[i  ][j+1][k] +
+                                   array[i+1][j  ][k] +
+                                   array[i+1][j+1][k];
+                  if ((face_case/2)%2 == 0) {
+                     j = y_block_size + 1;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+               }
+               if (face_case%2 == 1) {
+                  i = x_block_size + 1;
+                  if ((face_case/2)%2 == 1) {
+                     j = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i][j  ][k] +
+                                   array[i][j+1][k];
+                  if ((face_case/2)%2 == 0) {
+                     j = y_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               is = 0;
+               ie = x_block_half + 1;
+            } else {
+               is = x_block_half;
+               ie = x_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               js = 0;
+               je = y_block_half + 1;
+            } else {
+               js = y_block_half;
+               je = y_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (j = js; j <= je; j++, n++)
+                     send_buf[n] = array[i][j][k]/4.0;
+            }
+         }
+      }
+
+   } else { /* code == 2 send all ghosts and do all processing on send side */
+
+      if (dir == 0) {        /* X - East, West */
+
+         if (face_case >= 10) { /* +X - East */
+            i = x_block_size;
+            face_case = face_case - 10;
+         } else                 /* -X - West */
+            i = 1;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 0; j <= y_block_size+1; j++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               if (face_case%2 == 0) {
+                  j = 0;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+               for (j = 1; j < y_block_size; j += 2) {
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j  ][k] +
+                                     array[i][j+1][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j  ][k  ] +
+                                   array[i][j  ][k+1] +
+                                   array[i][j+1][k  ] +
+                                   array[i][j+1][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j  ][k] +
+                                     array[i][j+1][k];
+                  }
+               }
+               if (face_case%2 == 1) {
+                  j = y_block_size + 1;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               js = 1;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 1;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               j = js - 1;
+               k = ks - 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (k = ks; k <= ke; k++, n+=2)
+                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+               k = ke + 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (j = js; j <= je; j++) {
+                  k = ks - 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  for (k = ks; k <= ke; k++, n+=2)
+                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+                  k = ke + 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  k = ks - 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  for (k = ks; k <= ke; k++, n+=2)
+                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+                  k = ke + 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+               }
+               j = je + 1;
+               k = ks - 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (k = ks; k <= ke; k++, n+=2)
+                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+               k = ke + 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+            }
+         }
+
+      } else if (dir == 1) { /* Y - North, South */
+
+         if (face_case >= 10) { /* +Y - North */
+            j = y_block_size;
+            face_case = face_case - 10;
+         } else                 /* -Y - South */
+            j = 1;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               if (face_case%2 == 0) {
+                  i = 0;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+               for (i = 1; i < x_block_size; i += 2) {
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i  ][j][k  ] +
+                                   array[i  ][j][k+1] +
+                                   array[i+1][j][k  ] +
+                                   array[i+1][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+               }
+               if (face_case%2 == 1) {
+                  i = x_block_size + 1;
+                  if ((face_case/2)%2 == 1) {
+                     k = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     send_buf[n] = array[i][j][k  ] +
+                                   array[i][j][k+1];
+                  if ((face_case/2)%2 == 0) {
+                     k = z_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               is = 1;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 1;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               i = is - 1;
+               k = ks - 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (k = ks; k <= ke; k++, n+=2)
+                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+               k = ke + 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (i = is; i <= ie; i++) {
+                  k = ks - 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  for (k = ks; k <= ke; k++, n+=2)
+                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+                  k = ke + 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  k = ks - 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  for (k = ks; k <= ke; k++, n+=2)
+                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+                  k = ke + 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+               }
+               i = ie + 1;
+               k = ks - 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (k = ks; k <= ke; k++, n+=2)
+                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+               k = ke + 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+            }
+         }
+
+      } else {               /* Z - Up, Down */
+
+         /* Z directions (Up and Down) sent last
+         */
+         if (face_case >= 10) { /* +Z - Up */
+            k = z_block_size;
+            face_case = face_case - 10;
+         } else                 /* -Z - Down */
+            k = 1;
+         typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (j = 0; j <= y_block_size+1; j++, n++)
+                     send_buf[n] = array[i][j][k];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face - case does not matter */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               if (face_case%2 == 0) {
+                  i = 0;
+                  if ((face_case/2)%2 == 1) {
+                     j = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i][j  ][k] +
+                                   array[i][j+1][k];
+                  if ((face_case/2)%2 == 0) {
+                     j = y_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+               for (i = 1; i < x_block_size; i += 2) {
+                  if ((face_case/2)%2 == 1) {
+                     j = 0;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i  ][j  ][k] +
+                                   array[i  ][j+1][k] +
+                                   array[i+1][j  ][k] +
+                                   array[i+1][j+1][k];
+                  if ((face_case/2)%2 == 0) {
+                     j = y_block_size + 1;
+                     send_buf[n++] = array[i  ][j][k] +
+                                     array[i+1][j][k];
+                  }
+               }
+               if (face_case%2 == 1) {
+                  i = x_block_size + 1;
+                  if ((face_case/2)%2 == 1) {
+                     j = 0;
+                     send_buf[n++] = array[i][j][k];
+                  }
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     send_buf[n] = array[i][j  ][k] +
+                                   array[i][j+1][k];
+                  if ((face_case/2)%2 == 0) {
+                     j = y_block_size + 1;
+                     send_buf[n++] = array[i][j][k];
+                  }
+               }
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to send */
+            if (face_case%2 == 0) {
+               is = 1;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               js = 1;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               i = is - 1;
+               j = js - 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (j = js; j <= je; j++, n+=2)
+                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+               j = je + 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (i = is; i <= ie; i++) {
+                  j = js - 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  for (j = js; j <= je; j++, n+=2)
+                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+                  j = je + 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  j = js - 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+                  for (j = js; j <= je; j++, n+=2)
+                     send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+                  j = je + 1;
+                  send_buf[n++] = array[i][j][k]/4.0;
+               }
+               i = ie + 1;
+               j = js - 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+               for (j = js; j <= je; j++, n+=2)
+                  send_buf[n] = send_buf[n+1] = array[i][j][k]/4.0;
+               j = je + 1;
+               send_buf[n++] = array[i][j][k]/4.0;
+            }
+         }
+      }
+   }
+}
+
+// Unpack ghost values that have been recieved.
+// The sense of the face case is reversed since we are receiving what was sent
+void unpack_face(double *recv_buf, int block_num, int face_case, int dir,
+                 int start, int num_comm)
+{
+   int i, j, k, n, m;
+   int is, ie, js, je, ks, ke;
+   block *bp;
+
+   bp = &blocks[block_num];
+
+   typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+
+   if (!code) {
+
+      if (dir == 0) {        /* X - East, West */
+
+         /* X directions (East and West)
+            just recv the real values and no ghosts
+            face_case based on send - so reverse
+         */
+         if (face_case >= 10) { /* +X - from East */
+            i = x_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -X - from West */
+            i = 0;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 1; j <= y_block_size; j++)
+                  for (k = 1; k <= z_block_size; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face - one case */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 1; j < y_block_size; j += 2)
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     array[i][j  ][k  ] =
+                     array[i][j  ][k+1] =
+                     array[i][j+1][k  ] =
+                     array[i][j+1][k+1] = recv_buf[n];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to recv */
+            if (face_case%2 == 0) {
+               js = 1;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 1;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = js; j <= je; j++)
+                  for (k = ks; k <= ke; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+
+      } else if (dir == 1) { /* Y - North, South */
+
+         /* Y directions (North and South) sent second, so recv the real values
+         */
+         if (face_case >= 10) { /* +Y - from North */
+            j = y_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -Y - from South */
+            j = 0;
+
+         if (face_case == 0) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i <= x_block_size; i++)
+                  for (k = 1; k <= z_block_size; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case == 1) {
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (k = 1; k <= z_block_size; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* one case - recv into 4 cells per cell sent */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i < x_block_size; i += 2)
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     array[i  ][j][k  ] =
+                     array[i  ][j][k+1] =
+                     array[i+1][j][k  ] =
+                     array[i+1][j][k+1] = recv_buf[n];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* whole face -> quarter face - determine case */
+            if (face_case%2 == 0) {
+               is = 1;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 1;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (k = ks; k <= ke; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+
+      } else {               /* Z - Up, Down */
+
+         /* Z directions (Up and Down) sent last
+         */
+         if (face_case >= 10) { /* +Z - from Up */
+            k = z_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -Z - from Down */
+            k = 0;
+
+         if (face_case == 0) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i <= x_block_size; i++)
+                  for (j = 1; j <= y_block_size; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case == 1) {
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (j = 0; j <= y_block_size+1; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* one case - receive into 4 cells */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 1; i < x_block_size; i += 2)
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     array[i  ][j  ][k] =
+                     array[i  ][j+1][k] =
+                     array[i+1][j  ][k] =
+                     array[i+1][j+1][k] = recv_buf[n];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* whole face -> quarter face - determine case */
+            if (face_case%2 == 0) {
+               is = 1;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size;
+            }
+            if ((face_case/2)%2 == 1) {
+               js = 1;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (j = js; j <= je; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+      }
+
+   } else if (code == 1) {  /* send ghosts */
+
+      if (dir == 0) {        /* X - East, West */
+
+         if (face_case >= 10) { /* +X - from East */
+            i = x_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -X - from West */
+            i = 0;
+
+         if (face_case < 2) {        /* whole face -> whole */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 0; j <= y_block_size+1; j++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               j = 0;
+               k = 0;
+               array[i][j][k] = recv_buf[n++];
+               for (k = 1; k < z_block_size; k += 2, n++)
+                  array[i][j][k  ] =
+                  array[i][j][k+1] = recv_buf[n];
+               k = z_block_size + 1;
+               array[i][j][k] = recv_buf[n++];
+               for (j = 1; j < y_block_size; j += 2) {
+                  k = 0;
+                  array[i][j  ][k] =
+                  array[i][j+1][k] = recv_buf[n++];
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     array[i][j  ][k  ] =
+                     array[i][j  ][k+1] =
+                     array[i][j+1][k  ] =
+                     array[i][j+1][k+1] = recv_buf[n];
+                  k = z_block_size + 1;
+                  array[i][j  ][k] =
+                  array[i][j+1][k] = recv_buf[n++];
+               }
+               j = y_block_size + 1;
+               k = 0;
+               array[i][j][k] = recv_buf[n++];
+               for (k = 1; k < z_block_size; k += 2, n++)
+                  array[i][j][k  ] =
+                  array[i][j][k+1] = recv_buf[n];
+               k = z_block_size + 1;
+               array[i][j][k] = recv_buf[n++];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to recv */
+            if (face_case%2 == 0) {
+               js = 0;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 0;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = js; j <= je; j++)
+                  for (k = ks; k <= ke; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+
+      } else if (dir == 1) { /* Y - North, South */
+
+         if (face_case >= 10) { /* +Y - from North */
+            j = y_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -Y - from South */
+            j = 0;
+
+         if (face_case < 2) {        /* whole face -> whole */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               i = 0;
+               k = 0;
+               array[i][j][k] = recv_buf[n++];
+               for (k = 1; k < z_block_size; k += 2, n++)
+                  array[i][j][k  ] =
+                  array[i][j][k+1] = recv_buf[n];
+               k = z_block_size + 1;
+               array[i][j][k] = recv_buf[n++];
+               for (i = 1; i < x_block_size; i += 2) {
+                  k = 0;
+                  array[i  ][j][k] =
+                  array[i+1][j][k] = recv_buf[n++];
+                  for (k = 1; k < z_block_size; k += 2, n++)
+                     array[i  ][j][k  ] =
+                     array[i  ][j][k+1] =
+                     array[i+1][j][k  ] =
+                     array[i+1][j][k+1] = recv_buf[n];
+                  k = z_block_size + 1;
+                  array[i  ][j][k] =
+                  array[i+1][j][k] = recv_buf[n++];
+               }
+               i = x_block_size + 1;
+               k = 0;
+               array[i][j][k] = recv_buf[n++];
+               for (k = 1; k < z_block_size; k += 2, n++)
+                  array[i][j][k  ] =
+                  array[i][j][k+1] = recv_buf[n];
+               k = z_block_size + 1;
+               array[i][j][k] = recv_buf[n++];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* whole face -> quarter face - determine case */
+            if (face_case%2 == 0) {
+               is = 0;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 0;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (k = ks; k <= ke; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+
+      } else {               /* Z - Up, Down */
+
+         if (face_case >= 10) { /* +Z - from Up */
+            k = z_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -Z - from Down */
+            k = 0;
+
+         if (face_case < 2) {        /* whole face -> whole face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (j = 0; j <= y_block_size+1; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else if (face_case >= 2 && face_case <= 5) {
+            /* whole face -> quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               i = 0;
+               j = 0;
+               array[i][j][k] = recv_buf[n++];
+               for (j = 1; j < y_block_size; j += 2, n++)
+                  array[i][j  ][k] =
+                  array[i][j+1][k] = recv_buf[n];
+               j = y_block_size + 1;
+               array[i][j][k] = recv_buf[n++];
+               for (i = 1; i < x_block_size; i += 2) {
+                  j = 0;
+                  array[i  ][j][k] =
+                  array[i+1][j][k] = recv_buf[n++];
+                  for (j = 1; j < y_block_size; j += 2, n++)
+                     array[i  ][j  ][k] =
+                     array[i  ][j+1][k] =
+                     array[i+1][j  ][k] =
+                     array[i+1][j+1][k] = recv_buf[n];
+                  j = y_block_size + 1;
+                  array[i  ][j][k] =
+                  array[i+1][j][k] = recv_buf[n++];
+               }
+               i = x_block_size + 1;
+               j = 0;
+               array[i][j][k] = recv_buf[n++];
+               for (j = 1; j < y_block_size; j += 2, n++)
+                  array[i][j  ][k] =
+                  array[i][j+1][k] = recv_buf[n];
+               j = y_block_size + 1;
+               array[i][j][k] = recv_buf[n++];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* whole face -> quarter face - determine case */
+            if (face_case%2 == 0) {
+               is = 0;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               js = 0;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (j = js; j <= je; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+      }
+
+   } else {  /* code == 2 send ghosts and process on send */
+
+      if (dir == 0) {        /* X - East, West */
+
+         if (face_case >= 10) { /* +X - from East */
+            i = x_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -X - from West */
+            i = 0;
+
+         if (face_case <= 5) {        /* whole face -> whole or quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = 0; j <= y_block_size+1; j++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* four cases - figure out which quarter of face to recv */
+            if (face_case%2 == 0) {
+               js = 0;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 0;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (j = js; j <= je; j++)
+                  for (k = ks; k <= ke; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+
+      } else if (dir == 1) { /* Y - North, South */
+
+         if (face_case >= 10) { /* +Y - from North */
+            j = y_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -Y - from South */
+            j = 0;
+
+         if (face_case <= 5) {        /* whole face -> whole or quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (k = 0; k <= z_block_size+1; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* whole face -> quarter face - determine case */
+            if (face_case%2 == 0) {
+               is = 0;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               ks = 0;
+               ke = z_block_half;
+            } else {
+               ks = z_block_half + 1;
+               ke = z_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (k = ks; k <= ke; k++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+
+      } else {               /* Z - Up, Down */
+
+         if (face_case >= 10) { /* +Z - from Up */
+            k = z_block_size + 1;
+            face_case = face_case - 10;
+         } else                 /* -Z - from Down */
+            k = 0;
+
+         if (face_case <= 5) {        /* whole face -> whole or quarter face */
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = 0; i <= x_block_size+1; i++)
+                  for (j = 0; j <= y_block_size+1; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         } else {                     /* quarter face -> whole face */
+            /* whole face -> quarter face - determine case */
+            if (face_case%2 == 0) {
+               is = 0;
+               ie = x_block_half;
+            } else {
+               is = x_block_half + 1;
+               ie = x_block_size + 1;
+            }
+            if ((face_case/2)%2 == 1) {
+               js = 0;
+               je = y_block_half;
+            } else {
+               js = y_block_half + 1;
+               je = y_block_size + 1;
+            }
+            for (n = 0, m = start; m < start+num_comm; m++) {
+               block3D_t array = (block3D_t)&bp->array[m*block3D_size];
+               for (i = is; i <= ie; i++)
+                  for (j = js; j <= je; j++, n++)
+                     array[i][j][k] = recv_buf[n];
+            }
+         }
+      }
+   }
+}
 
 // Routine that does on processor communication between two blocks that
 // are at the same level of refinement.
