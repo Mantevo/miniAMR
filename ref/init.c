@@ -179,9 +179,9 @@ void init(void)
 
    if (!stencil) {
       mat = num_vars/4;
-      beta = ((double) rand())/((double) RAND_MAX);
+      a1 = ((double) rand())/((double) RAND_MAX);
       for (i = 0; i < (num_vars/4); i++)
-         alpha[i] = ((double) rand())/((double) RAND_MAX);
+         a0[i] = ((double) rand())/((double) RAND_MAX);
    }
    max_active_block = init_block_x*init_block_y*init_block_z;
    num_active = max_active_block;

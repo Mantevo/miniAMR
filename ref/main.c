@@ -573,8 +573,8 @@ void allocate(void)
                                     __FILE__, __LINE__);
 
    if (!stencil)
-      alpha = (double *) ma_malloc((num_vars/4)*sizeof(double),
-                                   __FILE__, __LINE__);
+      a0 = (double *) ma_malloc((num_vars/4)*sizeof(double),
+                                __FILE__, __LINE__);
 }
 
 // =================================== deallocate ============================
