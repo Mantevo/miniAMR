@@ -381,6 +381,7 @@ void consolidate_blocks(void)
             bp->number = pp->number;
             bp->num_prime = pp->num_prime;
             pp->number = -1;
+            num_parents--;
             bp->level = pp->level;
             bp->parent = pp->parent;
             bp->parent_node = pp->parent_node;
