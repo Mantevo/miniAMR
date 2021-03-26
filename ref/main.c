@@ -29,6 +29,7 @@
 #include <string.h>
 #include <mpi.h>
 
+#define MA_MAIN
 #include "block.h"
 #include "comm.h"
 #include "timer.h"
