@@ -40,7 +40,7 @@ void profile(void)
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
           total_fp_divs;
    object *op;
-   char *version = "1.6.4";
+   char *version = "1.6.7";
    FILE *fp;
 
    calculate_results();
