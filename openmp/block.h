@@ -41,7 +41,7 @@ typedef struct {
    int nei_level[6];  /* 0 to 5 = W, E, S, N, D, U; use -2 for boundary */
    int nei[6][2][2];  /* negative if off processor (-1 - proc) */
    int cen[3];
-   double ****array;
+   double * array;
 } block;
 block *blocks;
 
@@ -73,6 +73,7 @@ int max_num_blocks;
 int num_refine;
 int uniform_refine;
 int x_block_size, y_block_size, z_block_size;
+int block3D_size;
 int num_cells;
 int num_vars;
 int mat;

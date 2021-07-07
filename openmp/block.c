@@ -149,19 +149,23 @@ void split_blocks(void)
                   i1 *= x_block_half;
                   j1 *= y_block_half;
                   k1 *= z_block_half;
-                  for (v = 0; v < num_vars; v++)
+                  for (v = 0; v < num_vars; v++) {
+                     typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+                     block3D_t array_from = (block3D_t)&bp->array[v*block3D_size];
+                     block3D_t array_to   = (block3D_t)&bp1->array[v*block3D_size];
                      for (i2 = i = 1; i <= x_block_half; i++, i2+=2)
                         for (j2 = j = 1; j <= y_block_half; j++, j2+=2)
                            for (k2 = k = 1; k <= z_block_half; k++, k2+=2)
-                              bp1->array[v][i2  ][j2  ][k2  ] =
-                              bp1->array[v][i2+1][j2  ][k2  ] =
-                              bp1->array[v][i2  ][j2+1][k2  ] =
-                              bp1->array[v][i2+1][j2+1][k2  ] =
-                              bp1->array[v][i2  ][j2  ][k2+1] =
-                              bp1->array[v][i2+1][j2  ][k2+1] =
-                              bp1->array[v][i2  ][j2+1][k2+1] =
-                              bp1->array[v][i2+1][j2+1][k2+1] =
-                                    bp->array[v][i+i1][j+j1][k+k1]/8.0;
+                              array_to[i2  ][j2  ][k2  ] =
+                              array_to[i2+1][j2  ][k2  ] =
+                              array_to[i2  ][j2+1][k2  ] =
+                              array_to[i2+1][j2+1][k2  ] =
+                              array_to[i2  ][j2  ][k2+1] =
+                              array_to[i2+1][j2  ][k2+1] =
+                              array_to[i2  ][j2+1][k2+1] =
+                              array_to[i2+1][j2+1][k2+1] =
+                                    array_from[i+i1][j+j1][k+k1]/8.0;
+                  }
                }
 
                // children all defined - connect children & disconnect parent
@@ -403,19 +407,23 @@ void consolidate_blocks(void)
                i1 = (o%2)*x_block_half;
                j1 = ((o/2)%2)*y_block_half;
                k1 = (o/4)*z_block_half;
-               for (v = 0; v < num_vars; v++)
+               for (v = 0; v < num_vars; v++) {
+                  typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+                  block3D_t array_from = (block3D_t)&bp1->array[v*block3D_size];
+                  block3D_t array_to   = (block3D_t)&bp->array[v*block3D_size];
                   for (i2 = i = 1; i <= x_block_half; i++, i2+=2)
                      for (j2 = j = 1; j <= y_block_half; j++, j2+=2)
                         for (k2 = k = 1; k <= z_block_half; k++, k2+=2)
-                           bp->array[v][i+i1][j+j1][k+k1] =
-                                 bp1->array[v][i2  ][j2  ][k2  ] +
-                                 bp1->array[v][i2+1][j2  ][k2  ] +
-                                 bp1->array[v][i2  ][j2+1][k2  ] +
-                                 bp1->array[v][i2+1][j2+1][k2  ] +
-                                 bp1->array[v][i2  ][j2  ][k2+1] +
-                                 bp1->array[v][i2+1][j2  ][k2+1] +
-                                 bp1->array[v][i2  ][j2+1][k2+1] +
-                                 bp1->array[v][i2+1][j2+1][k2+1];
+                           array_to[i+i1][j+j1][k+k1] =
+                                 array_from[i2  ][j2  ][k2  ] +
+                                 array_from[i2+1][j2  ][k2  ] +
+                                 array_from[i2  ][j2+1][k2  ] +
+                                 array_from[i2+1][j2+1][k2  ] +
+                                 array_from[i2  ][j2  ][k2+1] +
+                                 array_from[i2+1][j2  ][k2+1] +
+                                 array_from[i2  ][j2+1][k2+1] +
+                                 array_from[i2+1][j2+1][k2+1];
+               }
             }
             // now figure out communication
             for (c = 0; c < 6; c++) {

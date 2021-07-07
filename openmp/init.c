@@ -213,12 +213,15 @@ void init(void)
                         bp->cen[1] = j1*size + size/2;
                         bp->cen[2] = k1*size + size/2;
                         add_sorted_list(o, n, 0);
-                        for (var = 0; var < num_vars; var++)
+                        for (var = 0; var < num_vars; var++) {
+                           typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+                           block3D_t array = (block3D_t)&bp->array[var*block3D_size];
                            for (ib = 1; ib <= x_block_size; ib++)
                               for (jb = 1; jb <= y_block_size; jb++)
                                  for (kb = 1; kb <= z_block_size; kb++)
-                                    bp->array[var][ib][jb][kb] =
+                                    array[ib][jb][kb] =
                                        ((double) rand())/((double) RAND_MAX);
+                        }
                         if (i2 == 0)
                            if (i == 0) { /* 0 boundary */
                               bp->nei_level[0] = -2;

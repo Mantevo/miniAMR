@@ -342,6 +342,8 @@ void allocate(void)
 {
    int i, j, k, m, n;
 
+   block3D_size = (x_block_size+2)*(y_block_size+2)*(z_block_size+2);
+
    num_blocks = (num_sz *) ma_malloc((num_refine+1)*sizeof(num_sz),
                                   __FILE__, __LINE__);
    num_blocks[0] = num_pes*init_block_x*init_block_y*init_block_z;
@@ -354,22 +356,22 @@ void allocate(void)
 
    for (n = 0; n < max_num_blocks; n++) {
       blocks[n].number = -1;
-      blocks[n].array = (double ****) ma_malloc(num_vars*sizeof(double ***),
+      blocks[n].array = (double *) ma_malloc(num_vars*block3D_size*sizeof(double),
                                                 __FILE__, __LINE__);
-      for (m = 0; m < num_vars; m++) {
-         blocks[n].array[m] = (double ***)
-                              ma_malloc((x_block_size+2)*sizeof(double **),
-                                        __FILE__, __LINE__);
-         for (i = 0; i < x_block_size+2; i++) {
-            blocks[n].array[m][i] = (double **)
-                                   ma_malloc((y_block_size+2)*sizeof(double *),
-                                             __FILE__, __LINE__);
-            for (j = 0; j < y_block_size+2; j++)
-               blocks[n].array[m][i][j] = (double *)
-                                     ma_malloc((z_block_size+2)*sizeof(double),
-                                               __FILE__, __LINE__);
-         }
-      }
+      //for (m = 0; m < num_vars; m++) {
+      //   blocks[n].array[m] = (double ***)
+      //                        ma_malloc((x_block_size+2)*sizeof(double**),
+      //                                  __FILE__, __LINE__);
+      //    for (i = 0; i < x_block_size+2; i++) {
+      //       blocks[n].array[m][i] = (double **)
+      //                              ma_malloc((y_block_size+2)*sizeof(double *),
+      //                                        __FILE__, __LINE__);
+      //       for (j = 0; j < y_block_size+2; j++)
+      //          blocks[n].array[m][i][j] = (double *)
+      //                                ma_malloc((z_block_size+2)*sizeof(double),
+      //                                          __FILE__, __LINE__);
+      //    }
+      //}
    }
 
    sorted_list = (sorted_block *)ma_malloc(max_num_blocks*sizeof(sorted_block),
@@ -491,8 +493,7 @@ void allocate(void)
                                     __FILE__, __LINE__);
 
    if (num_refine) {
-      s_buf_size = (int) (0.10*((double)max_num_blocks))*comm_vars*
-                   (x_block_size+2)*(y_block_size+2)*(z_block_size+2);
+      s_buf_size = (int) (0.10*((double)max_num_blocks))*comm_vars*block3D_size;
       if (s_buf_size < (num_vars*x_block_size*y_block_size*z_block_size + 47))
          s_buf_size = num_vars*x_block_size*y_block_size*z_block_size + 47;
       r_buf_size = 5*s_buf_size;
@@ -528,14 +529,14 @@ void deallocate(void)
    int i, j, m, n;
 
    for (n = 0; n < max_num_blocks; n++) {
-      for (m = 0; m < num_vars; m++) {
-         for (i = 0; i < x_block_size+2; i++) {
-            for (j = 0; j < y_block_size+2; j++)
-               free(blocks[n].array[m][i][j]);
-            free(blocks[n].array[m][i]);
-         }
-         free(blocks[n].array[m]);
-      }
+      //for (m = 0; m < num_vars; m++) {
+      //   for (i = 0; i < x_block_size+2; i++) {
+      //      for (j = 0; j < y_block_size+2; j++)
+      //         free(blocks[n].array[m][i][j]);
+      //      free(blocks[n].array[m][i]);
+      //   }
+      //   free(blocks[n].array[m]);
+      //}
       free(blocks[n].array);
    }
    free(blocks);
