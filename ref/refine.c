@@ -37,8 +37,8 @@
 // be refined and which are going to be coarsened.
 void refine(int ts)
 {
-   int i, j, n, in, min_b, max_b, sum_b, num_refine_step, num_split,
-       nm_r, nm_c, nc_t, nc_u, nc[5], nca[5], ncn[5], ncx[5], done;
+   int i, j, n, in, min_b, max_b, sum_b, num_refine_step, num_split, nm_r,
+       nm_c, nc_t, nc_u, nc[5], nca[5], ncn[5], ncx[5], done, group, groups;
    double ratio, tp, tm, tu, tp1, tm1, tu1, t1, t2, t3, t4, t5;
    block *bp;
 
@@ -98,8 +98,8 @@ void refine(int ts)
       MPI_Allreduce(&sum_b, &max_b, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
       sum_b = num_parents + num_split;
       MPI_Allreduce(&sum_b, &min_b, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-      if (max_b > ((int) (0.75*((double) max_num_blocks))) ||
-          min_b >= (max_num_parents-1)) {
+      if (max_b > ((int) (0.9*((double) max_num_blocks))) ||
+          min_b > ((int) (0.9* ((double) max_num_parents)))) {
          redistribute_blocks(&tp1, &tm1, &tu1, &t3, &nm_r, num_split);
          timer_rs_ca += t3;
          nrrs++;
@@ -226,6 +226,37 @@ void refine(int ts)
       }
    }
 
+   // determine number of groups of blocks
+   t3 = timer();
+   for (in = 0; in < sorted_index[num_refine+1]; in++) {
+      bp = &blocks[sorted_list[in].n];
+      bp->new_proc = 0;
+   }
+   for (group = in = 0; in < sorted_index[num_refine+1]; in++) {
+      bp = &blocks[n = sorted_list[in].n];
+      if (bp->new_proc == 0) {
+         group++;
+         bp->new_proc = group;
+         mark_group(n, group);
+      }
+   }
+   nc[0] = group;
+   nc[1] = (group > 1) ? 1 : 0;
+   MPI_Allreduce(nc, nca, 2, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+   groups = nca[0];
+   if (groups > num_pes) {
+      num_over++;
+      tot_over += i = groups - num_pes;
+      MPI_Allreduce(&group, &groups, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+      if (groups > max_groups)
+         max_groups = groups;
+      if (!my_pe && report_perf & 8)
+         printf("max sets on a rank %d, num sets over ranks %d on %d ranks\n",
+                groups, i, nca[1]);
+   }
+   timer_group += timer() - t3;
+
+   // count communication partners
    num_comm_x += nc[0] = num_comm_partners[0];
    if (num_comm_partners[0] > num_comm_x_max)
       num_comm_x_max = num_comm_partners[0];
@@ -510,8 +541,12 @@ void reset_neighbors(void)
    }
 }
 
-// Redistribute blocks so that the number of blocks will not exceed the
-// number of available blocks on processors during refinement and coarsening
+// This routine will redistribute blocks, if needed, for three reasons:
+// 1) So the number of active blocks on a rank will not exceed the number
+//    available during the refinement and coarsening steps.
+// 2) So that the number of parent blocks do not exceed the number avaiable.
+// 3) So that all of the child blocks of a parent block are on the same
+//    rank so that the child blocks could be unrefined.
 void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
                          int *num_moved, int num_split)
 {
@@ -546,9 +581,10 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
    for (in = 0; in < sorted_index[num_refine+1]; in++)
       blocks[sorted_list[in].n].new_proc = -1;
 
+   // Determine how many blocks to be split each rank will have
+   // Limited by the space they have for new parent blocks
    target = sum/num_pes;
    rem = sum - target*num_pes;
-
    for (excess = i = 0; i < num_pes; i++) {
       need = target + (i < rem);
       if (need > space[i]) {
@@ -567,7 +603,9 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
             sum++;
          }
 
-   m = in = 0;
+   // mark to move the blocks to be split that need to be moved
+   m = 0;
+   in = sorted_index[num_refine+1] - 1;
    if (num_split > use[my_pe]) {  // have blocks to give
       my_excess = num_split - use[my_pe];
       my_active = num_active - my_excess + 7*use[my_pe] + 1;
@@ -579,8 +617,7 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
          if (gbin[i] < use[i]) {
             need += use[i] - gbin[i];
             if (need > excess)
-               for ( ; in < sorted_index[num_refine+1] && need > excess &&
-                       my_excess; in++)
+               for ( ; in && need > excess && my_excess; in--)
                   if ((bp = &blocks[sorted_list[in].n])->refine == 1) {
                      from[i]++;
                      bp->new_proc = i;
@@ -615,7 +652,7 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
    if (n) {
       MPI_Allreduce(&my_active, &sum, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-      if (sum > ((int) (0.75*((double) max_num_blocks)))) {
+      if (sum > ((int) (0.9*((double) max_num_blocks)))) {
          // even up the expected number of blocks per processor
          for (i = 0; i < num_pes; i++)
             bin[i] = 0;
@@ -633,7 +670,6 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
          in = sorted_index[num_refine+1] - 1;  // don't want to move big blocks
          if (my_active > (target + (my_pe < rem))) {  // have blocks to give
             my_excess = my_active - (target + (my_pe < rem));
-            (*num_moved) += my_excess;
             for (excess = i = 0; i < my_pe; i++)
                if (gbin[i] > (target + (i < rem)))
                   excess += gbin[i] - (target + (i < rem));
@@ -641,13 +677,18 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
                if (gbin[i] < (target + (i < rem))) {
                   need += (target + (i < rem)) - gbin[i];
                   if (need > excess)
-                     for ( ; in >= 0 && need > excess && my_excess; in--)
+                     for ( ; in >= 0 && need > excess && my_excess > 0; in--)
                         if ((bp = &blocks[sorted_list[in].n])->new_proc == -1){
                            from[i]++;
                            bp->new_proc = i;
-                           need--;
-                           my_excess--;
-                           m++;
+                           (*num_moved)++;
+                           if (bp->refine == 1) {
+                              need -= 7;
+                              my_excess -= 7;
+                           } else {
+                              need--;
+                              my_excess--;
+                           }
                         }
                }
          }
@@ -665,4 +706,29 @@ void redistribute_blocks(double *tp, double *tm, double *tu, double *time,
       move_blocks(tp, tm, tu);
    } else
       *time = timer() - t1;
+}
+
+void mark_group(int n, int group)
+{
+   int i, j, k;
+   block *bp;
+
+   bp = &blocks[n];
+   for (i = 0; i < 6; i++)
+      if (bp->nei_level[i] > bp->level)
+         for (j = 0; j < 2; j++)
+            for (k = 0; k < 2; k++) {
+               if (bp->nei[i][j][k] >= 0)
+                  if (!blocks[bp->nei[i][j][k]].new_proc) {
+                     blocks[bp->nei[i][j][k]].new_proc = group;
+                     mark_group(bp->nei[i][j][k], group);
+                  }
+            }
+      else
+         if (bp->nei_level[i] >= 0)
+            if (bp->nei[i][0][0] >= 0)
+               if (!blocks[bp->nei[i][0][0]].new_proc) {
+                  blocks[bp->nei[i][0][0]].new_proc = group;
+                  mark_group(bp->nei[i][0][0], group);
+               }
 }

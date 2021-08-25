@@ -115,6 +115,10 @@ void sfc(void)
 
       move_blocks(&tp, &tm, &tu);
    }
+
+   total_dots_used += max_active_dot;
+   if (max_active_dot > max_dots_used)
+      max_dots_used = max_active_dot;
    t5 = timer() - t4;
    timer_lb_misc += timer() - t1 - t2 - t3 - tp - tm - tu;
    timer_lb_sort += t2;
@@ -191,6 +195,13 @@ void sfc_sort(int div, int fact)
             }
             if (!extra[j]) {
                divider[j] = base + (divider[j]+1)*p8[num_refine-level];
+               done = 1;
+            } else if (bin1[j] == 8 && group_blocks) {
+               // don't split terminal octants
+               if (extra[j] > 4)
+                  divider[j] = base + (divider[j]+1)*p8[num_refine-level];
+               else
+                  divider[j] = base + divider[j]*p8[num_refine-level];
                done = 1;
             } else if (bin1[j] == 8 && level == num_refine) {
                divider[j] = base + divider[j]*p8[num_refine-level] +

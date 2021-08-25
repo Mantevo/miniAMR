@@ -35,7 +35,7 @@
 
 void load_balance(void)
 {
-   if (use_rcb)
+   if (lb_method == 0)
       rcb();
    else
       sfc();
@@ -83,8 +83,6 @@ void rcb(void)
    for (n = num_dots; n < max_num_dots; n++)
       dots[n].number = -1;
 
-   if (!my_pe && report_perf & 8) printf("RCB dirs ");
-   in = 0;
    if (change_dir) {
       nfac = factor(num_pes, fac);
       for (i = nfac, j = 0; i > 0; i--, j++) {
@@ -108,22 +106,17 @@ void rcb(void)
          if (r[1] > r[0])
             if (r[2] > r[1]) {
                dir = 2;
-               if (!my_pe && report_perf & 8) printf("z ");
             } else {
                dir = 1;
-               if (!my_pe && report_perf & 8) printf("y ");
             }
          else
             if (r[2] > r[0]) {
                dir = 2;
-               if (!my_pe && report_perf & 8) printf("z ");
             } else {
                dir = 0;
-               if (!my_pe && report_perf & 8) printf("x ");
             }
          if (dir != dirs[j]) {
             dirs[j] = dir;
-            in = 1;
          }
          sort(j, fact, dir);
          move_dots(j, fact);
@@ -138,27 +131,18 @@ void rcb(void)
          dir = find_dir(fact, npx1, npy1, npz1);
          if (dir == 0) {
             npx1 /= fact;
-            if (!my_pe && report_perf & 8) printf("x ");
          } else if (dir == 1) {
             npy1 /= fact;
-            if (!my_pe && report_perf & 8) printf("y ");
          } else {
             npz1 /= fact;
-            if (!my_pe && report_perf & 8) printf("z ");
          }
          if (dir != dirs[j]) {
             dirs[j] = dir;
-            in = 1;
          }
          sort(j, fact, dir);
          move_dots(j, fact);
       }
    }
-   if (!my_pe && report_perf & 8)
-      if (in)
-         printf("change\n");
-      else
-         printf("\n");
    // first have to move information from dots back to original core,
    // then will update processor block is moving to, and then its neighbors
    for (n = 0; n < num_pes; n++)
@@ -180,7 +164,7 @@ void rcb(void)
       if (limit_move && !first) {
          m = (limit_move*num_active)/100;
          /* change to move more refined blocks first */
-         /* for (in = 0; in < sorted_index[num_refine+1]; in++) {*/
+         /* for (in = 0; in < sorted_index[num_refine+1]; in++) {}*/
          for (in = sorted_index[num_refine+1]-1; in >= 0; in--) {
             n = sorted_list[in].n;
             if (blocks[n].new_proc != my_pe) {
@@ -206,6 +190,10 @@ void rcb(void)
 
       move_blocks(&tp, &tm, &tu);
    }
+
+   total_dots_used += max_active_dot;
+   if (max_active_dot > max_dots_used)
+      max_dots_used = max_active_dot;
    t5 = timer() - t4;
    timer_lb_misc += timer() - t1 - t2 - t3 - tp - tm - tu;
    timer_lb_sort += t2;
@@ -223,7 +211,7 @@ void exchange(double *tp, double *tm, double *tu)
    double t1, t2, t3, t4;
    MPI_Status status;
 
-   block_size = 49 + num_vars*num_cells;
+   block_size = 50 + num_vars*num_cells;
    type = 40;
    type1 = 41;
 
@@ -257,11 +245,11 @@ void exchange(double *tp, double *tm, double *tu)
                MPI_Recv(&i, 1, MPI_INT, start[l], type1,
                         MPI_COMM_WORLD, &status);
                if (i) {
-                  while (sp < max_active_block &&
+                  while (sp < max_active_block && 
                          (blocks[sp].number < 0 ||
                           (blocks[sp].number >= 0 &&
-                           (blocks[sp].new_proc != start[l] ||
-                            blocks[sp].new_proc == my_pe))))
+                            (blocks[sp].new_proc != start[l] ||
+                             blocks[sp].new_proc == my_pe))))
                      sp++;
                   t2 = timer();
                   pack_block(sp);
@@ -380,7 +368,7 @@ void sort(int div, int fact, int dir)
       }
    }
 
-   if (group_blocks) {
+   if (group_blocks == 1) {
       for (i = 0; i < max_active_dot; i++)
          if (dots[i].number >= 0) {
             for (j = 0; j < (fact-1); j++)
@@ -391,6 +379,37 @@ void sort(int div, int fact, int dir)
                   if (extra[j] > bin1[j]/2)
                      dots[i].new_proc = j + 1;
                   else
+                     dots[i].new_proc = j;
+                  break;
+               }
+            if (j == (fact-1))
+               dots[i].new_proc = j;
+         }
+   } else if (group_blocks == 2) {
+      // break_ties is signified by group_blocks = 2
+      for (j = 0; j < (fact-1); j++) {
+         my_extra[j] = 0;
+         if (extra[j]) {
+            MPI_Scan(&bin[point[j]], &i, 1, MPI_INT, MPI_SUM, comms[div]);
+            if ((i - bin[point[j]]) >= extra[j])
+               my_extra[j] = 0;
+            else if (i <= extra[j])
+               my_extra[j] = bin[point[j]];
+            else
+               my_extra[j] = extra[j] - (i - bin[point[j]]);
+         }
+      }
+      for (i = 0; i < max_active_dot; i++)
+         if (dots[i].number >= 0) {
+            for (j = 0; j < (fact-1); j++)
+               if (dots[i].cen[dir] <  point[j]) {
+                  dots[i].new_proc = j;
+                  break;
+               } else if (dots[i].cen[dir] == point[j]) {
+                  if (my_extra[j]) {
+                     dots[i].new_proc = j + 1;
+                     my_extra[j]--;
+                  } else
                      dots[i].new_proc = j;
                   break;
                }
@@ -825,12 +844,10 @@ void move_blocks(double *tp, double *tm, double *tu)
       bp = &blocks[n = sorted_list[in].n];
       if (bp->new_proc == -1) {
          nl = bp->number - block_start[bp->level];
-         pos[2] = nl/((p2[bp->level]*npx*init_block_x)*
-                      (p2[bp->level]*npy*init_block_y));
-         pos[1] = (nl%((p2[bp->level]*npx*init_block_x)*
-                       (p2[bp->level]*npy*init_block_y)))/
-                  (p2[bp->level]*npx*init_block_x);
-         pos[0] = nl%(p2[bp->level]*npx*init_block_x);
+         pos[2] = nl/((p2[bp->level]*init_x)*(p2[bp->level]*init_y));
+         pos[1] = (nl%((p2[bp->level]*init_x)*(p2[bp->level]*init_y)))/
+                  (p2[bp->level]*init_x);
+         pos[0] = nl%(p2[bp->level]*init_x);
          for (c = 0; c < 6; c++) {
             dir = c/2;
             i1 = j1 = k1 = 0;
@@ -848,8 +865,8 @@ void move_blocks(double *tp, double *tm, double *tu)
                   i = pos[mul[dir][1]]%2;
                   j = pos[mul[dir][0]]%2;
                   if (proc == my_pe) {
-                     number = (num_sz) (((pos[2]/2+k1)*p2[bp->level-1]*npy*init_block_y)+
-                                (pos[1]/2+j1))*p2[bp->level-1]*npx*init_block_x+
+                     number = (num_sz) (((pos[2]/2+k1)*p2[bp->level-1]*init_y)+
+                                (pos[1]/2+j1))*p2[bp->level-1]*init_x+
                               pos[0]/2 + i1 + block_start[bp->level-1];
                      n1 = find_sorted_list(number, (bp->level-1));
                      bp->nei[c][0][0] = n1;
@@ -865,8 +882,8 @@ void move_blocks(double *tp, double *tm, double *tu)
                if (bp->nei[c][0][0] < 0) {
                   proc = -1 - bp->nei[c][0][0];
                   if (proc == my_pe) {
-                     number = (num_sz) (((pos[2]+k1)*p2[bp->level]*npy*init_block_y) +
-                                (pos[1]+j1))*p2[bp->level]*npx*init_block_x +
+                     number = (num_sz) (((pos[2]+k1)*p2[bp->level]*init_y) +
+                                (pos[1]+j1))*p2[bp->level]*init_x +
                               pos[0] + i1 + block_start[bp->level];
                      n1 = find_sorted_list(number, bp->level);
                      bp->nei[c][0][0] = n1;
@@ -889,9 +906,9 @@ void move_blocks(double *tp, double *tm, double *tu)
                         proc = -1 - bp->nei[c][i][j];
                         if (proc == my_pe) {
                            number = (num_sz) (((2*(pos[2]+k1)-(k1-1)/2+off[2])*
-                                          p2[bp->level+1]*npy*init_block_y) +
+                                          p2[bp->level+1]*init_y) +
                                       (2*(pos[1]+j1)-(j1-1)/2+off[1]))*
-                                          p2[bp->level+1]*npx*init_block_x +
+                                          p2[bp->level+1]*init_x +
                                     2*(pos[0]+i1)-(i1-1)/2 + off[0] +
                                     block_start[bp->level+1];
                            n1 = find_sorted_list(number, (bp->level+1));

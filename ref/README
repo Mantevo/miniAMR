@@ -81,15 +81,26 @@ The list of arguments and their defaults is as follows:
       or by a natural ordering of the processors.  A setting of 1 selects
       the RCB ordering and the natural ordering is 0.  The default depends
       on which load balance algorithm is chosen.  If the RCB algorithm is
-      chosen then the default is the RCB ordering and if the space filling
-      curve algorithm is chosen then the default is the natural ordering.
+      chosen then the default is the RCB ordering and if one of the space
+      filling curve algorithms is chosen then the default is the natural
+      ordering, which does not matter if the Hilbert ordering is chosen
+      since it ignores this for the initial placement of blocks.
 
-   --rcb or --sfc - chooses the algorithm for load balancing
-      These two options choose the load balance algorithm.  The Recursive
-      Coordinate Bisection (RCB) algorithm is the default, but the option
-      in included for completeness.  The other option is the Space Filling
-      Curve (SFC).  This option is based on a Morton style space filling
-      curve.
+   --rcb or --morton or --hilbert or --trunc_hilbert - chooses the algorithm
+                                                       for load balancing
+      These options choose the load balance algorithm.  This option also
+      affects the initial ordering of the blocks as a side effect.  The
+      Recursive Coordinate Bisection (RCB) algorithm is the default, but the
+      option in included for completeness.  The other option are Space Filling
+      Curves.  The "--morton" option chooses a Morton style space filling
+      curve while the "--hilbert" chooses a Hilbert like space filling curve.
+      If each dimension starts with the same power of two number of blocks
+      then a Hilbert curve is constructed, but if there are uneven factors
+      of two or odd factors, this option uses a three dimensional Peano curve
+      to construct the initial ordering.  The --trunc_hilbert starts by
+      constructing a Hilbert curve that contains the initial layout of the
+      blocks and then, if necessary, truncates it in each direction, connecting
+      the remaining blocks in the order they occurred in the Hilbert curve.
 
    --npx - number of processors in the x direction
    --npy - number of processors in the y direction
@@ -156,8 +167,10 @@ The list of arguments and their defaults is as follows:
    --time - length of simulation (> 0.0)
       The amount of time to run the simulation where the delta is determined
       by the largest number such that an object boundary does not move more
-      than the size of the smallest cell.  If this option is chosen, then
-      the --num_tsteps option is ignored.
+      than the size of the smallest cell.  If this option is chosen and the
+      --num_tsteps option is used, then the code will run for this amount of
+      time in the number of timesteps chosen and the above calculation will
+      not be made.
 
    --stages_per_ts - number of comm/calc stages per timestep
       The number of calculate/communicate stages per timestep.  The default
@@ -190,7 +203,7 @@ The list of arguments and their defaults is as follows:
       calculations are used and the calculation for the first variable uses
       a seven point stencil to conserve the sum to show correctness.
 
-   --error_tol - (e^{-error_tol} ; >= 0) 
+   --error_tol - (e^{-error_tol} ; >= 0)
       This determines the error tolerance for the checksums for the variables.
       the tolerance is 10 to the negative power of error_tol.  The default
       is 8, so the default tolerance is 10^(-8).
@@ -203,7 +216,7 @@ The list of arguments and their defaults is as follows:
       This determines how the performance output is displayed.  The default
       is YAML output (value of 1).  There are four output modes and each is
       controlled by a bit in the value.  The YAML output (to a file called
-      results.yaml) is controlled by the first bit (report_perf & 1), the 
+      results.yaml) is controlled by the first bit (report_perf & 1), the
       text output file (results.txt) is controlled by the second bit
       (report_perf & 2), the output to standard out is controlled by the
       third bit (report_perf & 4), and the output of block decomposition
@@ -230,16 +243,22 @@ The list of arguments and their defaults is as follows:
 
    --change_dir - (no argument)
    --group_blocks - (no argument)
+   --break_ties - (no argument)
    --limit_move - (0 .. 100)
       These three options allow the code to be closer to the behavior of
       codes that we are studying.  The change_dir option allows the RCB
       algorithm to change the directions of the cuts at each refinement
-      step instead of being determined by the first refinement step.  The
-      group_blocks option causes all the blocks whose centers lie on a
-      cut line in the RCB algorithm to end up on the same side of the line
-      instead of being divided.  The limit_move option causes the number
-      of blocks that are moved during a load balance step to be limited
-      to a percentage of the number of blocks.
+      step instead of being determined by the first refinement step. For
+      the RCB algorithm, the group_blocks option causes all the blocks
+      whose centers lie on a cut line to end up on the same side of the
+      line instead of being divided and for the SFC algorithms, the
+      group_blocks option causes terminal octants that would be divided
+      to be kept together.  The break_ties option causes the RCB algorithm
+      to arbitrarily move blocks to one side or the other of a cut line when
+      there are ties instead of using the regular algorithm to divide them.
+      The limit_move option causes the number of blocks that are moved
+      during a load balance step to be limited to a percentage of the
+      number of blocks.
 
    --num_objects - (>= 0) number of objects to cause refinement
       The number of objects on which refinement is based.  Default is zero.

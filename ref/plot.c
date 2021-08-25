@@ -58,8 +58,7 @@ void plot(int ts)
       for (i = 0; i <= num_refine; i++)
          total_num_blocks += num_blocks[i];
       fprintf(fp, "%lld %d %d %d %d\n", (long long) total_num_blocks,
-                                        num_refine, npx*init_block_x,
-                                        npy*init_block_y, npz*init_block_z);
+                                        num_refine, init_x, init_y, init_z);
       buf_size = 0;
       fprintf(fp, "%d\n", num_active);
       for (n = 0; n < max_active_block; n++)

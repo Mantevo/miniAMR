@@ -184,7 +184,7 @@ void stencil_0(int var)
                                             (bp->array[0][i][j][k] +
                                              bp->array[var][i][j][k] +
                                              a1*bp->array[var+mat][i][j][k] +
-                                     (1.0-a1)*bp->array[var+2*mat][i][j][k])/
+                                       (1.0-a1)*bp->array[var+2*mat][i][j][k])/
                                             bp->array[1][i][j][k];
       }
       total_fp_adds += (double) 3*num_active*num_cells;
@@ -198,8 +198,8 @@ void stencil_0(int var)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] += bp->array[var-mat][i][j][k]*
                                              (a1*bp->array[0][i][j][k] +
-                                     a0[var-2*mat]*bp->array[var][i][j][k] +
-                                       (1.0-a1)*bp->array[var+mat][i][j][k])/
+                                        a0[var-2*mat]*bp->array[var][i][j][k] +
+                                         (1.0-a1)*bp->array[var+mat][i][j][k])/
                                              bp->array[1][i][j][k];
          }
       total_fp_adds += (double) 4*num_active*num_cells;
@@ -213,9 +213,9 @@ void stencil_0(int var)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] += bp->array[var-2*mat][i][j][k]*
                                              (a1*bp->array[0][i][j][k] +
-                                     a0[var-3*mat]*bp->array[var][i][j][k] +
-                           (1.0-a0[var-3*mat])*bp->array[var-mat][i][j][k] +
-                                     (1.0-a1)*bp->array[var-2*mat][i][j][k])/
+                                        a0[var-3*mat]*bp->array[var][i][j][k] +
+                              (1.0-a0[var-3*mat])*bp->array[var-mat][i][j][k] +
+                                       (1.0-a1)*bp->array[var-2*mat][i][j][k])/
                                              (bp->array[1][i][j][k]*
                                               bp->array[1][i][j][k]);
          }
@@ -256,7 +256,7 @@ void stencil_x(int var)
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
                                               a1*bp->array[var][i][j][k])/
-                                          (a0[var] + bp->array[1][i][j][k]);
+                                             (a0[var] + bp->array[1][i][j][k]);
       }
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
@@ -400,7 +400,7 @@ void stencil_y(int var)
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
                                               a1*bp->array[var][i][j][k])/
-                                          (a0[var] + bp->array[1][i][j][k]);
+                                             (a0[var] + bp->array[1][i][j][k]);
       }
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
@@ -545,7 +545,7 @@ void stencil_z(int var)
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
                                               a1*bp->array[var][i][j][k])/
-                                          (a0[var] + bp->array[1][i][j][k]);
+                                             (a0[var] + bp->array[1][i][j][k]);
       }
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;

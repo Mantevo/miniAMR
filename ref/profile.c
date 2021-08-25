@@ -38,13 +38,13 @@ void profile(void)
 {
    int i;
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
-          total_fp_divs;
+          total_fp_divs, delta;
    object *op;
-   char *version = "1.6.7";
+   char *version = "1.7.0"
    FILE *fp;
 
    calculate_results();
-   total_fp_ops = average[132] + average[133] + average[134];
+   total_fp_ops = average[139] + average[140] + average[141];
    total_gflops = total_fp_ops/(average[38]*1024.0*1024.0*1024.0);
    gflops_rank = total_gflops/((double) num_pes);
 
@@ -96,7 +96,7 @@ void profile(void)
          fprintf(fp, "refine_freq: %d\n", refine_freq);
          fprintf(fp, "lb_opt: %d\n", lb_opt);
          fprintf(fp, "inbalance: %d\n", inbalance);
-         fprintf(fp, "rcb: %d\n", use_rcb);
+         fprintf(fp, "lb_method: %d\n", lb_method);
          fprintf(fp, "plot_freq: %d\n", plot_freq);
          fprintf(fp, "num_vars: %d\n", num_vars);
          fprintf(fp, "stencil: %d\n", stencil);
@@ -555,12 +555,28 @@ void profile(void)
                       op->orig_cen[0], op->orig_cen[1], op->orig_cen[2]);
                fprintf(fp, "Center end at %lf %lf %lf\n",
                       op->cen[0], op->cen[1], op->cen[2]);
-               fprintf(fp, "Moving at %lf %lf %lf per timestep\n",
-                      op->orig_move[0], op->orig_move[1], op->orig_move[2]);
-               fprintf(fp, "   Rate relative to smallest cell size %lf %lf %lf\n",
+
+               if (use_time) {
+                  fprintf(fp, "Velocity of %lf %lf %lf\n",
+                         op->orig_move[0], op->orig_move[1], op->orig_move[2]);
+                  delta = end_time/((double) num_tsteps);
+                  fprintf(fp,
+                         "   Rate relative to smallest cell size %lf %lf %lf\n",
+                         delta*op->orig_move[0]*((double)
+                                                 (mesh_size[0]*x_block_size)),
+                         delta*op->orig_move[1]*((double)
+                                                 (mesh_size[1]*y_block_size)),
+                         delta*op->orig_move[2]*((double)
+                                                 (mesh_size[2]*z_block_size)));
+               } else {
+                  fprintf(fp, "Moving at %lf %lf %lf per timestep\n",
+                         op->orig_move[0], op->orig_move[1], op->orig_move[2]);
+                  fprintf(fp,
+                      "   Rate relative to smallest cell size %lf %lf %lf\n",
                       op->orig_move[0]*((double) (mesh_size[0]*x_block_size)),
                       op->orig_move[1]*((double) (mesh_size[1]*y_block_size)),
                       op->orig_move[2]*((double) (mesh_size[2]*z_block_size)));
+               }
                fprintf(fp, "Initial size %lf %lf %lf\n",
                       op->orig_size[0], op->orig_size[1], op->orig_size[2]);
                fprintf(fp, "Final size %lf %lf %lf\n",
@@ -585,14 +601,18 @@ void profile(void)
             fprintf(fp, "Communication will be performed with blocking sends\n");
          fprintf(fp, "Will perform checksums every %d stages\n", checksum_freq);
          fprintf(fp, "Will refine every %d timesteps\n", refine_freq);
-         if (use_rcb)
+         if (!lb_method)
             fprintf(fp, "Load balance by RCB (Recursive Coordinate Bisection)\n");
+         else if (lb_method == 1)
+            fprintf(fp, "Load balance by Morton Space Filling Curve\n");
+         else if (lb_method == 2)
+            fprintf(fp, "Load balance by Peano Hilbert Space Filling Curve\n");
          else
-            fprintf(fp, "Load balance by Space Filling Curve\n");
+            fprintf(fp, "Load balance by truncated Hilbert Space Filling Curve\n");
          if (lb_opt == 0)
             fprintf(fp, "Load balance will not be performed\n");
          else
-            fprintf(fp, "Load balance when inbalanced by %d%\n", inbalance);
+            fprintf(fp, "Load balance when inbalanced by %d%%\n", inbalance);
          if (lb_opt == 2)
             fprintf(fp, "Load balance at each phase of refinement step\n");
          if (plot_freq)
@@ -634,9 +654,9 @@ void profile(void)
          fprintf(fp, "     total GFLOPS:             %lf\n", total_gflops);
          fprintf(fp, "     Average GFLOPS per rank:  %lf\n\n", gflops_rank);
          fprintf(fp, "     Total floating point ops: %lf\n\n", total_fp_ops);
-         fprintf(fp, "        Adds:                  %lf\n", average[132]);
-         fprintf(fp, "        Muls:                  %lf\n", average[133]);
-         fprintf(fp, "        Divides:               %lf\n\n", average[134]);
+         fprintf(fp, "        Adds:                  %lf\n", average[139]);
+         fprintf(fp, "        Muls:                  %lf\n", average[140]);
+         fprintf(fp, "        Divides:               %lf\n\n", average[141]);
 
          fprintf(fp, "---------------------------------------------\n");
          fprintf(fp, "           Interblock communication\n");
@@ -770,8 +790,14 @@ void profile(void)
                  average[108]*num_pes);
          fprintf(fp, "     total moved redistribut: %lf\n",
                  average[109]*num_pes);
-         fprintf(fp, "     total moved coasening  : %lf\n",
+         fprintf(fp, "     total moved coasening  : %lf\n\n",
                  average[110]*num_pes);
+         fprintf(fp, "     parents ave, min, max  : %lf %d %d\n", average[132],
+                 (int) minimum[132], (int) maximum[132]);
+         fprintf(fp, "     max dots ave, min, max : %lf %d %d\n", average[133],
+                 (int) minimum[133], (int) maximum[133]);
+         fprintf(fp, "     ave dots used          : %lf\n\n",
+                 average[134]/nlbs);
          fprintf(fp, "                              average    stddev  minimum  maximum\n");
          fprintf(fp, "     Per processor:\n");
          fprintf(fp, "     total blocks split     : %lf %lf %lf %lf\n",
@@ -934,12 +960,25 @@ void profile(void)
                       op->orig_cen[0], op->orig_cen[1], op->orig_cen[2]);
                printf("Center end at %lf %lf %lf\n",
                       op->cen[0], op->cen[1], op->cen[2]);
-               printf("Moving at %lf %lf %lf per timestep\n",
-                      op->orig_move[0], op->orig_move[1], op->orig_move[2]);
-               printf("   Rate relative to smallest cell size %lf %lf %lf\n",
+               if (use_time) {
+                  printf("Velocity of %lf %lf %lf\n",
+                         op->orig_move[0], op->orig_move[1], op->orig_move[2]);
+                  delta = end_time/((double) num_tsteps);
+                  printf("   Rate relative to smallest cell size %lf %lf %lf\n",
+                         delta*op->orig_move[0]*((double)
+                                                 (mesh_size[0]*x_block_size)),
+                         delta*op->orig_move[1]*((double)
+                                                 (mesh_size[1]*y_block_size)),
+                         delta*op->orig_move[2]*((double)
+                                                 (mesh_size[2]*z_block_size)));
+               } else {
+                  printf("Moving at %lf %lf %lf per timestep\n",
+                         op->orig_move[0], op->orig_move[1], op->orig_move[2]);
+                  printf("   Rate relative to smallest cell size %lf %lf %lf\n",
                       op->orig_move[0]*((double) (mesh_size[0]*x_block_size)),
                       op->orig_move[1]*((double) (mesh_size[1]*y_block_size)),
                       op->orig_move[2]*((double) (mesh_size[2]*z_block_size)));
+               }
                printf("Initial size %lf %lf %lf\n",
                       op->orig_size[0], op->orig_size[1], op->orig_size[2]);
                printf("Final size %lf %lf %lf\n",
@@ -964,14 +1003,18 @@ void profile(void)
             printf("Communication will be performed with blocking sends\n");
          printf("Will perform checksums every %d stages\n", checksum_freq);
          printf("Will refine every %d timesteps\n", refine_freq);
-         if (use_rcb)
+         if (!lb_method)
             printf("Load balance by RCB (Recursive Coordinate Bisection)\n");
+         else if (lb_method == 1)
+            printf("Load balance by Morton Space Filling Curve\n");
+         else if (lb_method == 2)
+            printf("Load balance by Peano Hilbert Space Filling Curve\n");
          else
-            printf("Load balance by Space Filling Curve\n");
+            printf("Load balance by truncated Hilbert style Space Filling Curve\n");
          if (lb_opt == 0)
             printf("Load balance will not be performed\n");
          else
-            printf("Load balance when inbalanced by %d%\n", inbalance);
+            printf("Load balance when inbalanced by %d%%\n", inbalance);
          if (lb_opt == 2)
             printf("Load balance at each phase of refinement step\n");
          if (plot_freq)
@@ -1005,6 +1048,10 @@ void profile(void)
          printf("\nAmount malloced in timestepping: ave, std, min, max: %lf %lf %lf %lf\n\n",
                 average[116], stddev[116], minimum[116], maximum[116]);
 
+         printf("Main (parse, allocate) Time: ave, stddev, min, max (sec): %lf %lf %lf %lf\n\n",
+                average[138], stddev[138], minimum[138], maximum[138]);
+         printf("Initailize Time: ave, stddev, min, max (sec): %lf %lf %lf %lf\n\n",
+                average[137], stddev[137], minimum[137], maximum[137]);
          printf("---------------------------------------------\n");
          printf("          Computational Performance\n");
          printf("---------------------------------------------\n\n");
@@ -1013,9 +1060,11 @@ void profile(void)
          printf("     total GFLOPS:             %lf\n", total_gflops);
          printf("     Average GFLOPS per rank:  %lf\n\n", gflops_rank);
          printf("     Total floating point ops: %lf\n\n", total_fp_ops);
-         printf("        Adds:                  %lf\n", average[132]);
-         printf("        Muls:                  %lf\n", average[133]);
-         printf("        Divides:               %lf\n\n", average[134]);
+         printf("        Adds:                  %lf\n", average[139]);
+         printf("        Muls:                  %lf\n", average[140]);
+         printf("        Divides:               %lf\n\n", average[141]);
+         printf("     Sum of min/max compute times per ts: %lf %lf\n\n",
+                tmin[1], tmax[1]);
 
          printf("---------------------------------------------\n");
          printf("           Interblock communication\n");
@@ -1112,6 +1161,10 @@ void profile(void)
                    average[75+9*i], stddev[75+9*i], minimum[75+9*i],
                    maximum[75+9*i]);
          }
+         printf("\n     Sum of min/max communicate times per ts: %lf %lf\n",
+                tmin[0], tmax[0]);
+         printf("\n     Sum of min/max calc and comm times per ts: %lf %lf\n",
+                tmin[4], tmax[4]);
 
          printf("\n---------------------------------------------\n");
          printf("             Gridsum performance\n");
@@ -1124,6 +1177,9 @@ void profile(void)
                 average[41], stddev[41], minimum[41], maximum[41]);
          printf("     total number:             %d\n", total_red);
          printf("     number per timestep:      %d\n\n", num_vars);
+
+         printf("     Sum of min/max gridsum times per ts: %lf %lf\n\n",
+                tmin[2], tmax[2]);
 
          printf("---------------------------------------------\n");
          printf("               Mesh Refinement\n");
@@ -1144,7 +1200,17 @@ void profile(void)
          printf("     total blocks moved     : %lf\n", average[107]*num_pes);
          printf("     total moved load bal   : %lf\n", average[108]*num_pes);
          printf("     total moved redistribut: %lf\n", average[109]*num_pes);
-         printf("     total moved coasening  : %lf\n", average[110]*num_pes);
+         printf("     total moved coasening  : %lf\n\n", average[110]*num_pes);
+         printf("     parents ave, min, max  : %lf %d %d\n", average[132],
+                (int) minimum[132], (int) maximum[132]);
+         printf("     max dots ave, min, max : %lf %d %d\n", average[133],
+                (int) minimum[133], (int) maximum[133]);
+         printf("     ave dots used          : %lf\n\n", average[134]/nlbs);
+         printf("     number of times more sets of blocks than ranks: %d\n",
+                num_over);
+         printf("     total sets of blocks over num of ranks: %d\n", tot_over);
+         printf("     max number of sets of blocks on a rank: %d\n\n",
+                max_groups);
          printf("                              average    stddev  minimum  maximum\n");
          printf("     Per processor:\n");
          printf("     total blocks split     : %lf %lf %lf %lf\n",
@@ -1160,6 +1226,8 @@ void profile(void)
          printf("     Blocks moved coarsening: %lf %lf %lf %lf\n",
                 average[110], stddev[110], minimum[110], maximum[110]);
          printf("     Time:\n");
+         printf("        initial refine      : %lf %lf %lf %lf\n\n",
+                average[136], stddev[136], minimum[136], maximum[136]);
          printf("        compare objects     : %lf %lf %lf %lf\n",
                 average[43], stddev[43], minimum[43], maximum[43]);
          printf("        mark refine/coarsen : %lf %lf %lf %lf\n",
@@ -1172,6 +1240,8 @@ void profile(void)
                 average[48], stddev[48], minimum[48], maximum[48]);
          printf("        sync time           : %lf %lf %lf %lf\n",
                 average[49], stddev[49], minimum[49], maximum[49]);
+         printf("        time for groups     : %lf %lf %lf %lf\n",
+                average[135], stddev[135], minimum[135], maximum[135]);
          printf("        misc time           : %lf %lf %lf %lf\n",
                 average[45], stddev[45], minimum[45], maximum[45]);
          printf("        total coarsen blocks: %lf %lf %lf %lf\n",
@@ -1211,6 +1281,9 @@ void profile(void)
          printf("              misc          : %lf %lf %lf %lf\n\n",
                 average[60], stddev[60], minimum[60], maximum[60]);
 
+         printf("     Sum of min/max refinement times per ts: %lf %lf\n\n",
+                tmin[3], tmax[3]);
+
          printf("---------------------------------------------\n");
          printf("                   Plot\n");
          printf("---------------------------------------------\n\n");
@@ -1218,7 +1291,7 @@ void profile(void)
                 average[63], stddev[63], minimum[63], maximum[63]);
          printf("     Number of plot steps: %d\n", nps);
          printf("\n ================== End report ===================\n");
-printf("Summary: ranks %d ts %d time %lf calc %lf max comm %lf min red %lf refine %lf blocks/ts %lf max_blocks %d\n", num_pes, num_tsteps, average[0], average[38], maximum[37], minimum[39], average[42], ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)), global_max_b);
+printf("Summary: ranks %d ts %d time %lf calc %lf comm %lf red %lf refine %lf blocks/ts %lf max_blocks %d\n", num_pes, num_tsteps, average[0], average[38], average[37], average[39], average[42], ((double) total_blocks)/((double) (num_tsteps*stages_per_ts)), global_max_b);
 fflush(NULL);
       }
    }
@@ -1226,10 +1299,11 @@ fflush(NULL);
 
 void calculate_results(void)
 {
-   double results[135], stddev_sum[132];
+   double results[142], stddev_sum[139];
    int i;
 
-   MPI_Allreduce(&local_max_b, &global_max_b, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD);
+   MPI_Allreduce(&local_max_b, &global_max_b, 1, MPI_INT, MPI_MAX,
+                 MPI_COMM_WORLD);
    results[0] = timer_all;
    for (i = 0; i < 9; i++)
       results[i+1] = 0.0;
@@ -1307,30 +1381,37 @@ void calculate_results(void)
    results[119] = (double) num_comm_z/(double) nrs;
    results[120] = (double) num_comm_tot/(double) nrs;
    results[121] = (double) num_comm_uniq/(double) nrs;
-   results[122] = num_comm_x_min;
-   results[123] = num_comm_y_min;
-   results[124] = num_comm_z_min;
-   results[125] = num_comm_t_min;
-   results[126] = num_comm_u_min;
-   results[127] = num_comm_x_max;
-   results[128] = num_comm_y_max;
-   results[129] = num_comm_z_max;
-   results[130] = num_comm_t_max;
-   results[131] = num_comm_u_max;
-   results[132] = total_fp_adds;
-   results[133] = total_fp_muls;
-   results[134] = total_fp_divs;
+   results[122] = (double) num_comm_x_min;
+   results[123] = (double) num_comm_y_min;
+   results[124] = (double) num_comm_z_min;
+   results[125] = (double) num_comm_t_min;
+   results[126] = (double) num_comm_u_min;
+   results[127] = (double) num_comm_x_max;
+   results[128] = (double) num_comm_y_max;
+   results[129] = (double) num_comm_z_max;
+   results[130] = (double) num_comm_t_max;
+   results[131] = (double) num_comm_u_max;
+   results[132] = (double) num_parents;
+   results[133] = (double) max_dots_used;
+   results[134] = (double) total_dots_used;
+   results[135] = (double) timer_group;
+   results[136] = timer_refine_init;
+   results[137] = timer_init;
+   results[138] = timer_main;
+   results[139] = total_fp_adds;
+   results[140] = total_fp_muls;
+   results[141] = total_fp_divs;
 
-   MPI_Allreduce(results, average, 135, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(results, minimum, 132, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-   MPI_Allreduce(results, maximum, 132, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+   MPI_Allreduce(results, average, 142, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(results, minimum, 139, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+   MPI_Allreduce(results, maximum, 139, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-   for (i = 0; i < 132; i++) {
+   for (i = 0; i < 139; i++) {
       average[i] /= (double) num_pes;
       stddev[i] = (results[i] - average[i])*(results[i] - average[i]);
    }
-   MPI_Allreduce(stddev, stddev_sum, 132, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   for (i = 0; i < 132; i++)
+   MPI_Allreduce(stddev, stddev_sum, 139, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   for (i = 0; i < 139; i++)
       stddev[i] = sqrt(stddev_sum[i]/((double) num_pes));
 }
 
@@ -1367,6 +1448,7 @@ void init_profile(void)
    timer_refine_c1 = 0.0;
    timer_refine_c2 = 0.0;
    timer_refine_sy = 0.0;
+   timer_refine_init = 0.0;
    timer_cb_all = 0.0;
    timer_cb_cb = 0.0;
    timer_cb_pa = 0.0;
@@ -1387,8 +1469,11 @@ void init_profile(void)
    timer_rs_un = 0.0;
 
    timer_plot = 0.0;
+   timer_init = 0.0;
 
    total_blocks = 0;
+   max_dots_used = 0;
+   total_dots_used = 0;
    nrrs = 0;
    nrs = 0;
    nps = 0;
@@ -1426,4 +1511,9 @@ void init_profile(void)
       counter_diff[i] = 0;
    }
    total_red = 0;
+   num_over = 0;
+   tot_over = 0;
+   max_groups = 1;
+   for (i = 1; i < 5; i++)
+      tmin[i] = tmax[i] = 0.0;
 }

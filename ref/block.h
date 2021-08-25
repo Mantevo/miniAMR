@@ -39,6 +39,7 @@ typedef struct {
    int level;
    int refine;
    int new_proc;
+   int b_type;
    num_sz parent;       // if original block -1,
                      // else if on node, number in structure
                      // else (-2 - parent->number)
@@ -56,6 +57,7 @@ typedef struct {
    num_sz number;
    num_sz num_prime;
    int level;
+   int b_type;
    num_sz parent;      // -1 if original block
    int parent_node;
    int child_number;
@@ -90,6 +92,7 @@ EXTERN int inbalance;
 EXTERN int refine_freq;
 EXTERN int report_diffusion;
 EXTERN int error_tol;
+EXTERN int use_tsteps;
 EXTERN int num_tsteps;
 EXTERN int use_time;
 EXTERN double end_time;
@@ -109,8 +112,9 @@ EXTERN int change_dir;
 EXTERN int group_blocks;
 EXTERN int limit_move;
 EXTERN int send_faces;
-EXTERN int use_rcb;
+EXTERN int lb_method;
 
+EXTERN int init_x, init_y, init_z;
 EXTERN int first;
 EXTERN int *dirs;
 EXTERN int num_cells;
@@ -157,6 +161,9 @@ EXTERN object *objects;
 EXTERN int num_dots;
 EXTERN int max_num_dots;
 EXTERN int max_active_dot;
+EXTERN int max_dots_used;
+EXTERN num_sz total_dots_used;
+
 typedef struct {
    num_sz number;
    int n;
@@ -165,6 +172,7 @@ typedef struct {
    int cen[3];
 } dot;
 EXTERN dot *dots;
+
 typedef struct {
    num_sz number;
    num_sz num_prime;

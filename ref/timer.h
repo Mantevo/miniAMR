@@ -30,10 +30,10 @@
 #define EXTERN extern
 #endif
 
-EXTERN double average[135];
-EXTERN double stddev[132];
-EXTERN double minimum[132];
-EXTERN double maximum[132];
+EXTERN double average[142];
+EXTERN double stddev[139];
+EXTERN double minimum[139];
+EXTERN double maximum[139];
 
 EXTERN double timer_all;
 
@@ -62,6 +62,7 @@ EXTERN double timer_refine_sb;
 EXTERN double timer_refine_c1;
 EXTERN double timer_refine_c2;
 EXTERN double timer_refine_sy;
+EXTERN double timer_refine_init;
 EXTERN double timer_cb_all;
 EXTERN double timer_cb_cb;
 EXTERN double timer_cb_pa;
@@ -80,7 +81,10 @@ EXTERN double timer_rs_ca;
 EXTERN double timer_rs_pa;
 EXTERN double timer_rs_mv;
 EXTERN double timer_rs_un;
+EXTERN double timer_group;
 
+EXTERN double timer_main;
+EXTERN double timer_init;
 EXTERN double timer_plot;
 
 EXTERN long long total_blocks;
@@ -125,3 +129,7 @@ EXTERN double size_malloc;
 EXTERN int counter_malloc_init;
 EXTERN double size_malloc_init;
 EXTERN int total_red;
+EXTERN int num_over;
+EXTERN int tot_over;
+EXTERN int max_groups;
+EXTERN double tmax[5], tmin[5];

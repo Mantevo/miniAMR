@@ -36,21 +36,24 @@
 // Main driver for program.
 void driver(void)
 {
-   int ts, var, start, number, stage, comm_stage, calc_stage, done;
-   double t1, t2, t3, t4;
+   int ts, var, start, number, stage, comm_stage, calc_stage, done, i, j, k,
+       last;
+   double t1, t2, t3, t4, ctime[refine_freq][5], tmp_time[5];
    double sum, delta = 1.0, sim_time;
 
+   t2 = timer();
    init();
    init_profile();
    counter_malloc_init = counter_malloc;
    size_malloc_init = size_malloc;
 
    t1 = timer();
+   timer_init = t1 - t2;
 
    first = 1;
    if (num_refine || uniform_refine) refine(0);
    t2 = timer();
-   timer_refine_all += t2 - t1;
+   timer_refine_all += timer_refine_init = t2 - t1;
    first = 0;
 
    if (plot_freq)
@@ -61,15 +64,14 @@ void driver(void)
    nb_min = nb_max = global_active;
 
    if (use_time) delta = calc_time_step();
-   for (sim_time = 0.0, done = comm_stage =calc_stage=0, ts = 1; !done; ts++) {
+   for (sim_time = 0.0, last = done = comm_stage = calc_stage=0, ts = 1;
+        !done; ts++) {
       if (!my_pe && report_perf & 8)
          printf("Timestep %d time %lf delta %lf\n", ts, sim_time, delta);
+      for (i = 0; i < 4; i++)
+         ctime[ts%refine_freq][i] = 0.0;
       for (stage=0; stage < stages_per_ts; stage++,comm_stage++,calc_stage++) {
          total_blocks += global_active;
-         if (global_active < nb_min)
-            nb_min = global_active;
-         if (global_active > nb_max)
-            nb_max = global_active;
          for (start = 0; start < num_vars; start += comm_vars) {
             if (start+comm_vars > num_vars)
                number = num_vars - start;
@@ -79,10 +81,12 @@ void driver(void)
             comm(start, number, comm_stage);
             t4 = timer();
             timer_comm_all += t4 - t3;
+            ctime[ts%refine_freq][0] += t4 - t3;
             for (var = start; var < (start+number); var++) {
                stencil_driver(var, calc_stage);
                t3 = timer();
                timer_calc_all += t3 - t4;
+               ctime[ts%refine_freq][1] += t3 - t4;
                if (checksum_freq && !(stage%checksum_freq)) {
                   sum = check_sum(var);
                   if (report_diffusion && !my_pe)
@@ -99,17 +103,24 @@ void driver(void)
                }
                t4 = timer();
                timer_cs_all += t4 - t3;
+               ctime[ts%refine_freq][2] += t4 - t3;
             }
          }
       }
 
       if (num_refine && !uniform_refine) {
          move(delta);
-         if (!(ts%refine_freq))
+         if (!(ts%refine_freq)) {
             refine(ts);
+            if (global_active < nb_min)
+               nb_min = global_active;
+            if (global_active > nb_max)
+               nb_max = global_active;
+         }
       }
       t2 = timer();
       timer_refine_all += t2 - t4;
+      ctime[ts%refine_freq][3] += t2 - t4;
 
       t3 = timer();
       if (plot_freq && !(ts%plot_freq))
@@ -118,12 +129,34 @@ void driver(void)
 
       sim_time += delta;
       if (use_time) {
+         if (use_tsteps)
+            if (ts >= num_tsteps)
+               done = 1;
          delta = calc_time_step();
          if (sim_time >= end_time)
             done = 1;
       } else
          if (ts >= num_tsteps)
             done = 1;
+
+      if (!(ts%refine_freq) || done) {
+         if (done)
+            k = ts - last;
+         else
+            k = refine_freq;
+         for (i = 0; i < k; i++) {
+            ctime[i][4] = ctime[i][0] + ctime[i][1];
+            MPI_Allreduce(ctime[i], tmp_time, 5, MPI_DOUBLE, MPI_MAX,
+                          MPI_COMM_WORLD);
+            for (j = 0; j < 5; j++)
+               tmax[j] += tmp_time[j];
+            MPI_Allreduce(ctime[i], tmp_time, 5, MPI_DOUBLE, MPI_MIN,
+                          MPI_COMM_WORLD);
+            for (j = 0; j < 5; j++)
+               tmin[j] += tmp_time[j];
+         }
+         last = ts;
+      }
    }
 
    end_time = sim_time;
@@ -141,35 +174,41 @@ double calc_time_step(void)
    double delta, tmp, inv_cell_size[3];
    object *op;
 
-   inv_cell_size[0] = (double) (mesh_size[0]*x_block_size);
-   inv_cell_size[1] = (double) (mesh_size[1]*y_block_size);
-   inv_cell_size[2] = (double) (mesh_size[2]*z_block_size);
-   delta = 0.0;
-   for (o = 0; o < num_objects; o++) {
-      op = &objects[o];
-      if (op->size[0] < 0.0 || op->size[1] < 0.0 || op->size[2] < 0)
-         break;
-      for (done = dir = 0; dir < 3; dir++)
-         if (op->cen[dir] < 0.0) {
-            if (op->cen[dir] + op->size[dir] < 0.0)
-               done = 1;
-         } else if (op->cen[dir] > 1.0) {
-            if (op->cen[dir] - op->size[dir] > 1.0)
-               done = 1;
+   if (use_tsteps) {
+      // want end_time in num_tsteps timesteps
+      delta = end_time/(double) num_tsteps;
+   } else {
+      // allow object boundary to move no more than one of the smallest cells
+      inv_cell_size[0] = (double) (mesh_size[0]*x_block_size);
+      inv_cell_size[1] = (double) (mesh_size[1]*y_block_size);
+      inv_cell_size[2] = (double) (mesh_size[2]*z_block_size);
+      delta = 0.0;
+      for (o = 0; o < num_objects; o++) {
+         op = &objects[o];
+         if (op->size[0] < 0.0 || op->size[1] < 0.0 || op->size[2] < 0)
+            break;
+         for (done = dir = 0; dir < 3; dir++)
+            if (op->cen[dir] < 0.0) {
+               if (op->cen[dir] + op->size[dir] < 0.0)
+                  done = 1;
+            } else if (op->cen[dir] > 1.0) {
+               if (op->cen[dir] - op->size[dir] > 1.0)
+                  done = 1;
+            }
+         if (done)
+            break;
+         for (dir = 0; dir < 3; dir++) {
+            tmp = (fabs(op->move[dir]) + fabs(op->inc[dir]))*inv_cell_size[dir];
+            if (tmp > delta)
+               delta = tmp;
          }
-      if (done)
-         break;
-      for (dir = 0; dir < 3; dir++) {
-         tmp = (fabs(op->move[dir]) + fabs(op->inc[dir]))*inv_cell_size[dir];
-         if (tmp > delta)
-            delta = tmp;
       }
-   }
 
-   if (delta > 0.0)
-      delta = 1.0/delta;
-   else
-      delta = 1.0;
+      if (delta > 0.0)
+         delta = 1.0/delta;
+      else
+         delta = 1.0;
+   }
 
    return delta;
 }

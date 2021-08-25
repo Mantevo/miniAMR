@@ -51,6 +51,7 @@ void pack_block(int n)
    l = 6;
    send_int[l++] = bp->level;
    send_int[l++] = bp->refine;
+   send_int[l++] = bp->b_type;
    send_int[l++] = bp->parent_node;
    send_int[l++] = bp->child_number;
    for (i = 0; i < 6; i++) {
@@ -86,6 +87,7 @@ void unpack_block(int n)
    l = 6;
    bp->level = recv_int[l++];
    bp->refine = recv_int[l++];
+   bp->b_type = recv_int[l++];
    bp->parent_node = recv_int[l++];
    bp->child_number = recv_int[l++];
    for (i = 0; i < 6; i++) {

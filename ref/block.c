@@ -29,6 +29,7 @@
 
 #include "block.h"
 #include "comm.h"
+#include "hilbert.h"
 #include "proto.h"
 #include "timer.h"
 
@@ -44,9 +45,8 @@ void split_blocks(void)
                                 { {0, 1}, {2, 3} }, { {4, 5}, {6, 7} } };
    static int off[6] = {1, -1, 2, -2, 4, -4};
    static int mul[3][3] = { {1, 2, 0}, {0, 2, 1}, {0, 1, 2} };
-   int i, j, k, m, n, o, v, c, c1, other,
-       i1, i2, j1, j2, k1, k2, dir, fcase, pe, f, p,
-       level, sib[8], offset, d, half_size;
+   int i, j, k, m, n, o, o1, v, c, c1, other, i1, i2, j1, j2, k1, k2,
+       dir, fcase, pe, f, p, level, sib[8], offset, d, half_size;
    num_sz nl, xp, yp, zp;
    block *bp, *bp1;
    parent *pp;
@@ -64,12 +64,10 @@ void split_blocks(void)
             bp = &blocks[n];
             if (bp->refine == 1) {
                nl = bp->number - block_start[level];
-               zp = nl/((p2[level]*npx*init_block_x)*
-                        (p2[level]*npy*init_block_y));
-               yp = (nl%((p2[level]*npx*init_block_x)*
-                         (p2[level]*npy*init_block_y)))/
-                    (p2[level]*npx*init_block_x);
-               xp = nl%(p2[level]*npx*init_block_x);
+               zp = nl/((p2[level]*init_x)*(p2[level]*init_y));
+               yp = (nl%((p2[level]*init_x)*(p2[level]*init_y)))/
+                    (p2[level]*init_x);
+               xp = nl%(p2[level]*init_x);
                if ((num_active + 8) > max_num_blocks) {
                   printf("ERROR: Need more blocks %d %d on %d\n",
                          num_active, max_num_blocks, my_pe);
@@ -96,6 +94,7 @@ void split_blocks(void)
                pp->number = bp->number;
                pp->num_prime = bp->num_prime;
                pp->level = bp->level;
+               pp->b_type = bp->b_type;
                pp->parent = bp->parent;
                pp->parent_node = bp->parent_node;
                pp->child_number = bp->child_number;
@@ -114,7 +113,7 @@ void split_blocks(void)
                pp->cen[2] = bp->cen[2];
 
                // Define the 8 children
-               for (o = 0; o < 8; o++) {
+               for (o1 = 0; o1 < 8; o1++) {
                   for ( ; m < max_num_blocks; m++)
                      if (blocks[m].number < 0)
                         break;
@@ -126,6 +125,13 @@ void split_blocks(void)
                   if ((m+1) > max_active_block)
                      max_active_block = m+1;
                   bp1 = &blocks[m];
+                  if (lb_method >= 2) {
+                     o = hilbert[bp->b_type][o1][0];
+                     bp1->b_type = hilbert[bp->b_type][o1][1];
+                  } else {
+                     o = o1;
+                     bp1->b_type = 0;
+                  }
                   sib[o] = m;
                   pp->child[o] = m;
                   pp->child_node[o] = my_pe;
@@ -137,11 +143,10 @@ void split_blocks(void)
                   i1 = (o%2);
                   j1 = ((o/2)%2);
                   k1 = (o/4);
-                  bp1->number = (num_sz) ((2*zp+k1)*
-                                 (p2[level+1]*npy*init_block_y) +
-                                 (2*yp+j1))*(p2[level+1]*npx*init_block_x) +
+                  bp1->number = (num_sz) ((2*zp+k1)*(p2[level+1]*init_y) +
+                                 (2*yp+j1))*(p2[level+1]*init_x) +
                                 2*xp + i1 + block_start[level+1];
-                  bp1->num_prime = bp->num_prime + o*p8[num_refine - level - 1];
+                  bp1->num_prime = bp->num_prime + o1*p8[num_refine - level-1];
                   add_sorted_list(m, bp1->number, (level+1));
                   bp1->cen[0] = bp->cen[0] +
                                 (2*i1 - 1)*p2[num_refine - level - 1];
@@ -383,6 +388,7 @@ void consolidate_blocks(void)
             pp->number = -1;
             num_parents--;
             bp->level = pp->level;
+            bp->b_type = pp->b_type;
             bp->parent = pp->parent;
             bp->parent_node = pp->parent_node;
             bp->child_number = pp->child_number;
@@ -465,12 +471,10 @@ void consolidate_blocks(void)
                      } else {
                         bp->nei_level[c] = level - 1;
                         nl = bp->number - block_start[level];
-                        pos[2] = nl/((p2[level]*npx*init_block_x)*
-                                     (p2[level]*npy*init_block_y));
-                        pos[1] = (nl%((p2[level]*npx*init_block_x)*
-                                      (p2[level]*npy*init_block_y)))/
-                                 (p2[level]*npx*init_block_x);
-                        pos[0] = nl%(p2[level]*npx*init_block_x);
+                        pos[2] = nl/((p2[level]*init_x)*(p2[level]*init_y));
+                        pos[1] = (nl%((p2[level]*init_x)*(p2[level]*init_y)))/
+                                 (p2[level]*init_x);
+                        pos[0] = nl%(p2[level]*init_x);
                         k = fcase + 2 + pos[mul[dir][1]]%2 +
                                      2*(pos[mul[dir][0]]%2);
                         add_comm_list(dir, n, pe, k, (bp->cen[mul[dir][1]]*
@@ -573,12 +577,10 @@ void consolidate_blocks(void)
                bp->nei_level[c] = level - 1;
                del_comm_list(dir, n, pe, fcase+f);
                nl = bp->number - block_start[level];
-               pos[2] = nl/((p2[level]*npx*init_block_x)*
-                            (p2[level]*npy*init_block_y));
-               pos[1] = (nl%((p2[level]*npx*init_block_x)*
-                             (p2[level]*npy*init_block_y)))/
-                        (p2[level]*npx*init_block_x);
-               pos[0] = nl%(p2[level]*npx*init_block_x);
+               pos[2] = nl/((p2[level]*init_x)*(p2[level]*init_y));
+               pos[1] = (nl%((p2[level]*init_x)*(p2[level]*init_y)))/
+                        (p2[level]*init_x);
+               pos[0] = nl%(p2[level]*init_x);
                k = fcase + 2 + pos[mul[dir][0]]%2 + 2*(pos[mul[dir][1]]%2);
                d = 2*(c%2) - 1;
                add_comm_list(dir, n, pe, k, (bp->cen[mul[dir][1]]*
