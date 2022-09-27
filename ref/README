@@ -53,9 +53,11 @@ variable to correspond with the flags available for the compiler being used.
 
    % <mpi-run-command> ./miniAMR.x
 
- where <mpi-run-command> varies from system to system but usually looks  something like 'mpirun -np 4 ' or similar.
+ where <mpi-run-command> varies from system to system but usually looks
+ something like 'mpirun -np 4 ' or similar.
 
- Execution is then driven entirely by the default settings, as configured in default-settings.h. Options may be listed using
+ Execution is then driven entirely by the default settings, as configured
+ in param.h. Options may be listed using
 
     % ./miniAMR.x --help
 
@@ -65,8 +67,9 @@ The list of arguments and their defaults is as follows:
    --nx - block size in x
    --ny - block size in y
    --nz - block size in z
-      These control the size of the blocks in the mesh.  All of these need to
-      be even and greater than zero.  The default is 10 for each variable.
+      These control the number of cellsin the blocks in the mesh.  All of
+      these need to be even and greater than zero.  The default is 10 for
+      each variable.
 
    --init_x - initial blocks in x
    --init_y - initial blocks in y
@@ -127,7 +130,7 @@ The list of arguments and their defaults is as follows:
    --uniform_refine - if 1, then grid is uniformly refined
       This controls whether the mesh is uniformly refined.  If it is 1 then the
       mesh will be uniformly refined, while if it is zero, the refinement will
-      be controlled by objects in the mesh.  The default is 1.
+      be controlled by objects in the mesh.  The default is 0.
 
    --refine_freq - frequency (in timesteps) of checking for refinement
       This determines the frequency (in timesteps) between checking if
