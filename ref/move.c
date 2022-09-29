@@ -37,11 +37,13 @@
 void move(double delta)
 {
    int i, j;
+   double tmp;
 
    for (i = 0; i < num_objects; i++)
       for (j = 0; j < 3; j++) {
          objects[i].cen[j] += delta*objects[i].move[j];
-         if (objects[i].bounce)
+         objects[i].size[j] += delta*objects[i].inc[j];
+         if (objects[i].bounce == 1)
             if (objects[i].cen[j] >= 1.0) {
                objects[i].cen[j] = 2.0 - objects[i].cen[j];
                objects[i].move[j] = -objects[i].move[j];
@@ -49,7 +51,14 @@ void move(double delta)
                objects[i].cen[j] = 0.0 - objects[i].cen[j];
                objects[i].move[j] = -objects[i].move[j];
             }
-         objects[i].size[j] += delta*objects[i].inc[j];
+         else if (objects[i].bounce == 2)
+            if ((tmp = objects[i].cen[j]+objects[i].size[j]) >= 1.0) {
+               objects[i].cen[j] -= tmp - 1.0;
+               objects[i].move[j] = -objects[i].move[j];
+            } else if ((tmp = objects[i].cen[j]-objects[i].size[j]) <= 0.0) {
+               objects[i].cen[j] -= tmp;
+               objects[i].move[j] = -objects[i].move[j];
+            }
       }
 }
 

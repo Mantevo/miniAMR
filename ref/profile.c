@@ -40,7 +40,7 @@ void profile(void)
    double total_gflops, gflops_rank, total_fp_ops, total_fp_adds,
           total_fp_divs, delta;
    object *op;
-   char *version = "1.7.0";
+   char *version = "1.7.0 (modified)";
    FILE *fp;
 
    calculate_results();
@@ -547,10 +547,12 @@ void profile(void)
                   fprintf(fp, "Object %d is the surface of z axis cylinder\n", i);
                else if (op->type == 25)
                   fprintf(fp, "Object %d is the volune of z axis cylinder\n", i);
-               if (op->bounce == 0)
-                  fprintf(fp, "Object may leave mesh\n");
-               else
+               if (op->bounce == 1)
                   fprintf(fp, "Object center will bounce off of walls\n");
+               else if (op->bounce == 2)
+                  fprintf(fp, "Object edge will bounce off of walls\n");
+               else
+                  fprintf(fp, "Object may leave mesh\n");
                fprintf(fp, "Center starting at %lf %lf %lf\n",
                       op->orig_cen[0], op->orig_cen[1], op->orig_cen[2]);
                fprintf(fp, "Center end at %lf %lf %lf\n",
@@ -952,10 +954,12 @@ void profile(void)
                   printf("Object %d is the surface of z axis cylinder\n", i);
                else if (op->type == 25)
                   printf("Object %d is the volune of z axis cylinder\n", i);
-               if (op->bounce == 0)
-                  printf("Object may leave mesh\n");
-               else
+               if (op->bounce == 1)
                   printf("Object center will bounce off of walls\n");
+               else if (op->bounce == 2)
+                  printf("Object edge will bounce off of walls\n");
+               else
+                  printf("Object may leave mesh\n");
                printf("Center starting at %lf %lf %lf\n",
                       op->orig_cen[0], op->orig_cen[1], op->orig_cen[2]);
                printf("Center end at %lf %lf %lf\n",

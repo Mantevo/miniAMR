@@ -54,10 +54,10 @@ variable to correspond with the flags available for the compiler being used.
    % <mpi-run-command> ./miniAMR.x
 
  where <mpi-run-command> varies from system to system but usually looks
- something like 'mpirun -np 4 ' or similar.
+something like 'mpirun -np 4 ' or similar.
 
  Execution is then driven entirely by the default settings, as configured
- in param.h. Options may be listed using
+in param.h. Options may be listed using
 
     % ./miniAMR.x --help
 
@@ -67,7 +67,7 @@ The list of arguments and their defaults is as follows:
    --nx - block size in x
    --ny - block size in y
    --nz - block size in z
-      These control the number of cellsin the blocks in the mesh.  All of
+      These control the number of cells in the blocks in the mesh.  All of
       these need to be even and greater than zero.  The default is 10 for
       each variable.
 
@@ -110,7 +110,7 @@ The list of arguments and their defaults is as follows:
    --npz - number of processors in the z direction
       These control the number of processors is each direction.  The product
       of these number has to equal the number of processors being used.  The
-      default is 1 block in each direction.
+      default is 1 processor in each direction.
 
    --max_blocks - maximun number of blocks per processor
       The maximun number of blocks used per processor.  This is the number of
@@ -132,9 +132,12 @@ The list of arguments and their defaults is as follows:
       mesh will be uniformly refined, while if it is zero, the refinement will
       be controlled by objects in the mesh.  The default is 0.
 
-   --refine_freq - frequency (in timesteps) of checking for refinement
-      This determines the frequency (in timesteps) between checking if
-      refinement is needed.  The default is every 5 timesteps.
+   --refine_freq - frequency (timesteps) of refinement (0 for none)
+      This determines how frequently (in timesteps) the mesh is checked
+      and refinement is done.  The default is every 5 timesteps.  If
+      uniform refinement is turned on, the setting of refine_freq does
+      not matter and the mesh will be refined before the first timestep.
+
 
    --inbalance - percentage inbalance to trigger inbalance
       This parameter allows the user to set a percentage threshold above
@@ -158,9 +161,9 @@ The list of arguments and their defaults is as follows:
 
    --comm_vars - number of vars to communicate together
       The number of variables that will communicated together.  This will
-      allow shorter but more variables if it is set to something less than
-      the total number of variables.  The default is zero which will
-      communicate all of the variables at once.
+      allow shorter but more frequent messages if it is set to something
+      less than the total number of variables.  The default is zero which
+      will communicate all of the variables at once.
 
    --num_tsteps - number of timesteps (> 0)
       The number of timesteps for which the simulation will be run.  The
@@ -228,12 +231,6 @@ The list of arguments and their defaults is as follows:
       of these options can be used in any run.  Setting report_perf to 0
       will result in no output.
 
-   --refine_freq - frequency (timesteps) of refinement (0 for none)
-      This determines how frequently (in timesteps) the mesh is checked
-      and refinement is done.  The default is every 5 timesteps.  If
-      uniform refinement is turned on, the setting of refine_freq does
-      not matter and the mesh will be refined before the first timestep.
-
    --refine_ghosts - (no argument)
       The default is to not use the ghost cells of a block to determine if
       that block will be refined.  Specifying this flag will allow those
@@ -248,7 +245,7 @@ The list of arguments and their defaults is as follows:
    --group_blocks - (no argument)
    --break_ties - (no argument)
    --limit_move - (0 .. 100)
-      These three options allow the code to be closer to the behavior of
+      These four options allow the code to be closer to the behavior of
       codes that we are studying.  The change_dir option allows the RCB
       algorithm to change the directions of the cuts at each refinement
       step instead of being determined by the first refinement step. For
@@ -259,9 +256,10 @@ The list of arguments and their defaults is as follows:
       to be kept together.  The break_ties option causes the RCB algorithm
       to arbitrarily move blocks to one side or the other of a cut line when
       there are ties instead of using the regular algorithm to divide them.
-      The limit_move option causes the number of blocks that are moved
-      during a load balance step to be limited to a percentage of the
-      number of blocks.
+      If both the group_blocks and break_ties are used, then the one that
+      is last on the command line will be used.  The limit_move option
+      causes the number of blocks that are moved during a load balance step
+      to be limited to a percentage of the number of blocks.
 
    --num_objects - (>= 0) number of objects to cause refinement
       The number of objects on which refinement is based.  Default is zero.
@@ -277,9 +275,11 @@ The list of arguments and their defaults is as follows:
              a solid spheroid (+/- with 3 cutting planes)(5, 7, 9, 11, 13, 15),
              the surface of a cylinder (20, 22, 24),
              and the volume of a cylinder (21, 23, 25).
-      bounce - If this is 1 then an object will bounce off of the walls
-               when the center hits an edge of the unit cube.  If it is
-               zero, then the object can leave the mesh.
+      bounce - If this is 1 then an object will bounce off of the walls when
+               the center hits a face of the unit cube.  If it is 2 then the
+               object will bounce when the edge of the object hits a face of
+               the unit cube.  If it is zero, then the object can leave the
+               mesh.
       center - Three doubles that determine the center of the object in the
                x, y, and z directions.
       move - Three doubles that determine the rate of movement of the center
