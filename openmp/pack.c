@@ -62,11 +62,14 @@ void pack_block(int n)
    for (i = 0; i < 3; i++)
       send_int[l++] = bp->cen[i];
 
-   for (v = 0; v < num_vars; v++)
+   for (v = 0; v < num_vars; v++) {
+      typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+      block3D_t array = (block3D_t)&bp->array[v*block3D_size];
       for (i = 1; i <= x_block_size; i++)
          for (j = 1; j <= y_block_size; j++)
             for (k = 1; k <= z_block_size; k++)
-               send_buff[l++] = bp->array[v][i][j][k];
+               send_buff[l++] = array[i][j][k];
+   }
 }
 
 void unpack_block(int n)
@@ -96,9 +99,12 @@ void unpack_block(int n)
    for (i = 0; i < 3; i++)
       bp->cen[i] = recv_int[l++];
 
-   for (v = 0; v < num_vars; v++)
+   for (v = 0; v < num_vars; v++) {
+      typedef double (*block3D_t)[y_block_size+2][z_block_size+2];
+      block3D_t array = (block3D_t)&bp->array[v*block3D_size];
       for (i = 1; i <= x_block_size; i++)
          for (j = 1; j <= y_block_size; j++)
             for (k = 1; k <= z_block_size; k++)
-               bp->array[v][i][j][k] = recv_buff[l++];
+               array[i][j][k] = recv_buff[l++];
+   }
 }

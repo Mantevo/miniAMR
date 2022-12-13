@@ -44,7 +44,11 @@ void profile(void)
    char *version = "1.4? w/OpenMP";
    FILE *fp;
 
+#ifdef _OPENMP
    ompt = omp_get_max_threads();
+#else
+   ompt = 1;
+#endif
    calculate_results();
    total_fp_ops = average[128] + average[129] + average[130];
    total_gflops = total_fp_ops/(average[38]*1024.0*1024.0*1024.0);
