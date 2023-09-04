@@ -49,13 +49,20 @@ void comm_refine(void)
                    &request[i]);
 
       for (i = 0; i < num_comm_partners[dir]; i++) {
-         offset = comm_index[dir][i];
+         if (nonblocking)
+            offset = comm_index[dir][i];
+         else
+            offset = 0;
          for (n = 0; n < comm_num[dir][i]; n++)
             send_int[offset+n] =
                           blocks[comm_block[dir][comm_index[dir][i]+n]].refine;
-         MPI_Isend(&send_int[comm_index[dir][i]], comm_num[dir][i],
-                   MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,
-                   &s_req[i]);
+         if (nonblocking)
+            MPI_Isend(&send_int[comm_index[dir][i]], comm_num[dir][i],
+                      MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,
+                      &s_req[i]);
+         else
+            MPI_Send(&send_int[0], comm_num[dir][i], MPI_INT,
+                     comm_partner[dir][i], type, MPI_COMM_WORLD);
       }
 
       for (i = 0; i < num_comm_partners[dir]; i++) {
@@ -72,8 +79,9 @@ void comm_refine(void)
          }
       }
 
-      for (i = 0; i < num_comm_partners[dir]; i++)
-         err = MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
+      if (nonblocking)
+         for (i = 0; i < num_comm_partners[dir]; i++)
+            err = MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
    }
 }
 
@@ -93,15 +101,22 @@ void comm_reverse_refine(void)
                    &request[i]);
 
       for (i = 0; i < num_comm_partners[dir]; i++) {
-         offset = comm_index[dir][i];
+         if (nonblocking)
+            offset = comm_index[dir][i];
+         else
+            offset = 0;
          for (n = 0; n < comm_num[dir][i]; n++) {
             face = dir*2 + (comm_face_case[dir][comm_index[dir][i]+n] >= 10);
             send_int[offset+n] =
                 blocks[comm_block[dir][comm_index[dir][i]+n]].nei_refine[face];
          }
-         MPI_Isend(&send_int[comm_index[dir][i]], comm_num[dir][i],
-                   MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,
-                   &s_req[i]);
+         if (nonblocking)
+            MPI_Isend(&send_int[comm_index[dir][i]], comm_num[dir][i],
+                      MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,
+                      &s_req[i]);
+         else
+            MPI_Send(send_int, comm_num[dir][i], MPI_INT,
+                     comm_partner[dir][i], type, MPI_COMM_WORLD);
       }
 
       for (i = 0; i < num_comm_partners[dir]; i++) {
@@ -123,7 +138,55 @@ void comm_reverse_refine(void)
             }
       }
 
+      if (nonblocking)
+         for (i = 0; i < num_comm_partners[dir]; i++)
+            err = MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
+   }
+}
+
+void comm_refine_unrefine(void)
+{
+   int i, n, offset, dir, which, face, err, type;
+   int *send_int = (int *) send_buff;
+   int *recv_int = (int *) recv_buff;
+   block *bp;
+   MPI_Status status;
+
+   for (dir = 0; dir < 3; dir++) {
+      type = 16 + dir;
       for (i = 0; i < num_comm_partners[dir]; i++)
-         err = MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
+         MPI_Irecv(&recv_int[comm_index[dir][i]], comm_num[dir][i],
+                   MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,
+                   &request[i]);
+
+      for (i = 0; i < num_comm_partners[dir]; i++) {
+         if (nonblocking)
+            offset = comm_index[dir][i];
+         else
+            offset = 0;
+         for (n = 0; n < comm_num[dir][i]; n++)
+            send_int[offset+n] =
+                          blocks[comm_block[dir][comm_index[dir][i]+n]].refine;
+         if (nonblocking)
+            MPI_Isend(&send_int[comm_index[dir][i]], comm_num[dir][i],
+                      MPI_INT, comm_partner[dir][i], type, MPI_COMM_WORLD,
+                      &s_req[i]);
+         else
+            MPI_Send(&send_int[0], comm_num[dir][i], MPI_INT,
+                     comm_partner[dir][i], type, MPI_COMM_WORLD);
+      }
+
+      for (i = 0; i < num_comm_partners[dir]; i++) {
+         err = MPI_Waitany(num_comm_partners[dir], request, &which, &status);
+         for (n = 0; n < comm_num[dir][which]; n++) {
+            face = dir*2+(comm_face_case[dir][comm_index[dir][which]+n] >= 10);
+            bp = &blocks[comm_block[dir][comm_index[dir][which]+n]];
+            bp->nei_refine[face] = recv_int[comm_index[dir][which]+n];
+         }
+      }
+
+      if (nonblocking)
+         for (i = 0; i < num_comm_partners[dir]; i++)
+            err = MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
    }
 }

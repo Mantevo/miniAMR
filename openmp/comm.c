@@ -41,12 +41,14 @@
 // to exchange their ghost values.
 void comm(int start, int num_comm, int stage)
 {
-   int i, j, k, l, m, n, dir, o, in, which, offset, type, c1, c2, c3;;
+   int i, j, k, l, m, n, dir, o, which, offset, type, size, num_mesg;
    int permutations[6][3] = { {0, 1, 2}, {1, 2, 0}, {2, 0, 1},
                               {0, 2, 1}, {1, 0, 2}, {2, 1, 0} };
-   double t1, t2, t3, t4, time1, time2, time3;
-   block *bp;
+   double t1, t2, t3, t4;
    MPI_Status status;
+   // Private variables for omp
+   int c1, c2, c3;
+   double time1, time2, time3;
 
    for (o = 0; o < 3; o++) {
       if (permute)
@@ -55,13 +57,33 @@ void comm(int start, int num_comm, int stage)
          dir = o;
       type = dir;
       t1 = timer();
-      for (i = 0; i < num_comm_partners[dir]; i++) {
-         MPI_Irecv(&recv_buff[comm_recv_off[dir][comm_index[dir][i]]],
-                   recv_size[dir][i], MPI_DOUBLE,
-                   comm_partner[dir][i], type, MPI_COMM_WORLD, &request[i]);
-         counter_halo_recv[dir]++;
-         size_mesg_recv[dir] += (double) recv_size[dir][i]*sizeof(double);
-      }
+      for (num_mesg = i = 0; i < num_comm_partners[dir]; i++)
+         if (send_faces)
+            for (n = 0; n < comm_num[dir][i]; n++, num_mesg++) {
+               if ((j = comm_face_case[dir][comm_index[dir][i]+n]) >= 10)
+                  j -= 10;
+               if (j == 0)
+                  size = comm_vars*msg_len[dir][0];
+               else if (j == 1)
+                  size = comm_vars*msg_len[dir][1];
+               else if (j < 6)
+                  size = comm_vars*msg_len[dir][3];
+               else
+                  size = comm_vars*msg_len[dir][2];
+               MPI_Irecv(&recv_buff[comm_recv_off[dir][comm_index[dir][i]+n]],
+                         size, MPI_DOUBLE, comm_partner[dir][i], n,
+                         MPI_COMM_WORLD, &request[num_mesg]);
+               counter_halo_recv[dir]++;
+               size_mesg_recv[dir] += (double) size*sizeof(double);
+            }
+         else {
+            MPI_Irecv(&recv_buff[comm_recv_off[dir][comm_index[dir][i]]],
+                      recv_size[dir][i], MPI_DOUBLE,
+                      comm_partner[dir][i], type, MPI_COMM_WORLD, &request[i]);
+            counter_halo_recv[dir]++;
+            size_mesg_recv[dir] += (double) recv_size[dir][i]*sizeof(double);
+            num_mesg++;
+         }
       timer_comm_recv[dir] += timer() - t1;
 
 /**** the send and recv list can be same if kept ordered (length can be diff)
@@ -72,36 +94,78 @@ void comm(int start, int num_comm, int stage)
         6-9 quarter -> whole w/ number indicating which quarter (matters send)
         + 10 for E, N, U
 **** one large send buffer -- can pack and send for a neighbor and reuse */
-      for (i = 0; i < num_comm_partners[dir]; i++) {
-         t2 = timer();
-#pragma omp parallel for private (offset)
-         for (n = 0; n < comm_num[dir][i]; n++) {
-            offset = comm_send_off[dir][comm_index[dir][i]+n];
-            pack_face(&send_buff[offset], comm_block[dir][comm_index[dir][i]+n],
-                      comm_face_case[dir][comm_index[dir][i]+n], dir,
-                      start, num_comm);
+      if (send_faces)
+         for (k = i = 0; i < num_comm_partners[dir]; i++)
+            for (n = 0; n < comm_num[dir][i]; n++, k++) {
+               t2 = timer();
+               if (nonblocking)
+                  offset = comm_send_off[dir][comm_index[dir][i]+n];
+               else
+                  offset = 0;
+               pack_face(&send_buff[offset],
+                         comm_block[dir][comm_index[dir][i]+n],
+                         comm_face_case[dir][comm_index[dir][i]+n], dir,
+                         start, num_comm);
+               counter_face_send[dir]++;
+               t3 = timer();
+               if ((j = comm_face_case[dir][comm_index[dir][i]+n]) >= 10)
+                  j -= 10;
+               if (j == 0)
+                  size = comm_vars*msg_len[dir][0];
+               else if (j == 1)
+                  size = comm_vars*msg_len[dir][1];
+               else if (j < 6)
+                  size = comm_vars*msg_len[dir][2];
+               else
+                  size = comm_vars*msg_len[dir][3];
+               if (nonblocking)
+                  MPI_Isend(&send_buff[offset], size, MPI_DOUBLE,
+                            comm_partner[dir][i], n, MPI_COMM_WORLD,&s_req[k]);
+               else
+                  MPI_Send(send_buff, size, MPI_DOUBLE, comm_partner[dir][i],n,
+                           MPI_COMM_WORLD);
+               counter_halo_send[dir]++;
+               size_mesg_send[dir] += (double) size*sizeof(double);
+               t4 = timer();
+               timer_comm_pack[dir] += t3 - t2;
+               timer_comm_send[dir] += t4 - t3;
+            }
+      else
+         for (i = 0; i < num_comm_partners[dir]; i++) {
+            t2 = timer();
+            for (n = 0; n < comm_num[dir][i]; n++) {
+               offset = comm_send_off[dir][comm_index[dir][i]+n];
+               if (!nonblocking)
+                  offset -= comm_send_off[dir][comm_index[dir][i]];
+               pack_face(&send_buff[offset],
+                         comm_block[dir][comm_index[dir][i]+n],
+                         comm_face_case[dir][comm_index[dir][i]+n], dir,
+                         start, num_comm);
+            }
+            counter_face_send[dir] += comm_num[dir][i];
+            t3 = timer();
+            if (nonblocking)
+               MPI_Isend(&send_buff[comm_send_off[dir][comm_index[dir][i]]],
+                         send_size[dir][i], MPI_DOUBLE, comm_partner[dir][i],
+                         type, MPI_COMM_WORLD, &s_req[i]);
+            else
+               MPI_Send(send_buff, send_size[dir][i], MPI_DOUBLE,
+                        comm_partner[dir][i], type, MPI_COMM_WORLD);
+            counter_halo_send[dir]++;
+            size_mesg_send[dir] += (double) send_size[dir][i]*sizeof(double);
+            t4 = timer();
+            timer_comm_pack[dir] += t3 - t2;
+            timer_comm_send[dir] += t4 - t3;
          }
-         counter_face_send[dir] += comm_num[dir][i];
-         t3 = timer();
-         MPI_Isend(&send_buff[comm_send_off[dir][comm_index[dir][i]]],
-                   send_size[dir][i], MPI_DOUBLE, comm_partner[dir][i],
-                   type, MPI_COMM_WORLD, &s_req[i]);
-         counter_halo_send[dir]++;
-         size_mesg_send[dir] += (double) send_size[dir][i]*sizeof(double);
-         t4 = timer();
-         timer_comm_pack[dir] += t3 - t2;
-         timer_comm_send[dir] += t4 - t3;
-      }
 
       // While values are being sent over the mesh, go through and direct
       // blocks to exchange ghost values with other blocks that are on
       // processor.  Also apply boundary conditions for boundary of domain.
-      time1 = time2 = time3 = 0.0;
       c1 = c2 = c3 = 0;
-#pragma omp parallel for private (n, bp, l, m, i, j, k, t2, time1, time2, \
-                                  time3) reduction (+: c1, c2, c3)
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[n = sorted_list[in].n];
+      time1 = time2 = time3 = 0.0;
+      #pragma omp parallel for private(n, l, m, i, j, k, t2, time1, time2, time3) reduction(+: c1, c2, c3)
+      for(int in = 0; in < sorted_index[num_refine+1]; in++) {
+         block* bp = &blocks[n = sorted_list[in].n];
          for (l = dir*2; l < (dir*2 + 2); l++) {
             if (bp->nei_level[l] == bp->level) {
                t2 = timer();
@@ -130,7 +194,7 @@ void comm(int start, int num_comm, int stage)
                            c2 += 2;
                         }
                }
-               t2 += timer() - t2;
+               time2 += timer() - t2;
             } else if (bp->nei_level[l] == -2) {
                t2 = timer();
                apply_bc(l, bp, start, num_comm);
@@ -142,34 +206,49 @@ void comm(int start, int num_comm, int stage)
             }
          }
       }
-      counter_same[dir] += c1;
-      counter_diff[dir] += c2;
-      counter_bc[dir] += c3;
-      timer_comm_same[dir] += time1;
-      timer_comm_diff[dir] += time2;
-      timer_comm_bc[dir] += time3;
+      // Write local temp values into correct ones
+      counter_same[dir] = c1;
+      counter_diff[dir] = c2;
+      counter_bc[dir] = c3;
+      timer_comm_same[dir] = time1;
+      timer_comm_diff[dir] = time2;
+      timer_comm_bc[dir] = time3;
 
-      for (i = 0; i < num_comm_partners[dir]; i++) {
+      for (i = 0; i < num_mesg; i++) {
          t2 = timer();
-         MPI_Waitany(num_comm_partners[dir], request, &which, &status);
+         MPI_Waitany(num_mesg, request, &which, &status);
          t3 = timer();
-#pragma omp parallel for
-         for (n = 0; n < comm_num[dir][which]; n++)
-          unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][which]+n]],
-                      comm_block[dir][comm_index[dir][which]+n],
-                      comm_face_case[dir][comm_index[dir][which]+n],
-                      dir, start, num_comm);
-         counter_face_recv[dir] += comm_num[dir][which];
+         if (send_faces) {
+            for (k = j = 0; j < num_comm_partners[dir]; k += comm_num[dir][j++])
+               if (which <= (k + comm_num[dir][j])) {
+                 l = which - k;
+                 unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][j]+l]],
+                             comm_block[dir][comm_index[dir][j]+l],
+                             comm_face_case[dir][comm_index[dir][j]+l],
+                             dir, start, num_comm);
+                 break;
+               }
+            counter_face_recv[dir]++;
+         } else {
+            for (n = 0; n < comm_num[dir][which]; n++)
+               unpack_face(&recv_buff[comm_recv_off[dir][comm_index[dir][which]+n]],
+                           comm_block[dir][comm_index[dir][which]+n],
+                           comm_face_case[dir][comm_index[dir][which]+n],
+                           dir, start, num_comm);
+            counter_face_recv[dir] += comm_num[dir][which];
+         }
          t4 = timer();
          timer_comm_wait[dir] += t3 - t2;
          timer_comm_unpack[dir] += t4 - t3;
       }
 
-      t2 = timer();
-      for (i = 0; i < num_comm_partners[dir]; i++)
-         MPI_Waitany(num_comm_partners[dir], s_req, &which, &status);
-      t3 = timer();
-      timer_comm_wait[dir] += t3 - t2;
+      if (nonblocking) {
+         t2 = timer();
+         for (i = 0; i < num_mesg; i++)
+            MPI_Waitany(num_mesg, s_req, &which, &status);
+         t3 = timer();
+         timer_comm_wait[dir] += t3 - t2;
+      }
       timer_comm_dir[dir] += timer() - t1;
    }
 }
@@ -1851,6 +1930,7 @@ void apply_bc(int l, block *bp, int start, int num_comm)
       switch (l) {
          case 1: t = x_block_size + 1;
                  f = x_block_size;
+                 /* FALLTHROUGH */
          case 0: for (var = start; var < start+num_comm; var++)
                     for (j = 1; j <= y_block_size; j++)
                        for (k = 1; k <= z_block_size; k++)
@@ -1858,6 +1938,7 @@ void apply_bc(int l, block *bp, int start, int num_comm)
                  break;
          case 3: t = y_block_size + 1;
                  f = y_block_size;
+                 /* FALLTHROUGH */
          case 2: for (var = start; var < start+num_comm; var++)
                     for (i = 1; i <= x_block_size; i++)
                        for (k = 1; k <= z_block_size; k++)
@@ -1865,6 +1946,7 @@ void apply_bc(int l, block *bp, int start, int num_comm)
                  break;
          case 5: t = z_block_size + 1;
                  f = z_block_size;
+                 /* FALLTHROUGH */
          case 4: for (var = start; var < start+num_comm; var++)
                     for (i = 1; i <= x_block_size; i++)
                        for (j = 1; j <= y_block_size; j++)
@@ -1875,6 +1957,7 @@ void apply_bc(int l, block *bp, int start, int num_comm)
       switch (l) {
          case 1: t = x_block_size + 1;
                  f = x_block_size;
+                 /* FALLTHROUGH */
          case 0: for (var = start; var < start+num_comm; var++)
                     for (j = 0; j <= y_block_size+1; j++)
                        for (k = 0; k <= z_block_size+1; k++)
@@ -1882,6 +1965,7 @@ void apply_bc(int l, block *bp, int start, int num_comm)
                  break;
          case 3: t = y_block_size + 1;
                  f = y_block_size;
+                 /* FALLTHROUGH */
          case 2: for (var = start; var < start+num_comm; var++)
                     for (i = 0; i <= x_block_size+1; i++)
                        for (k = 0; k <= z_block_size+1; k++)
@@ -1889,6 +1973,7 @@ void apply_bc(int l, block *bp, int start, int num_comm)
                  break;
          case 5: t = z_block_size + 1;
                  f = z_block_size;
+                 /* FALLTHROUGH */
          case 4: for (var = start; var < start+num_comm; var++)
                     for (i = 0; i <= x_block_size+1; i++)
                        for (j = 0; j <= y_block_size+1; j++)

@@ -29,6 +29,7 @@
 #include <string.h>
 #include <mpi.h>
 
+#define MA_MAIN
 #include "block.h"
 #include "comm.h"
 #include "timer.h"
@@ -37,8 +38,9 @@
 int main(int argc, char** argv)
 {
    int i, ierr, object_num;
-   int params[33];
-   double *objs;
+   int params[39];
+   double *objs, t1;
+   //int provided;
 #include "param.h"
 
    ierr = MPI_Init(&argc, &argv);
@@ -46,11 +48,14 @@ int main(int argc, char** argv)
    ierr = MPI_Comm_rank(MPI_COMM_WORLD, &my_pe);
    ierr = MPI_Comm_size(MPI_COMM_WORLD, &num_pes);
 
+   t1 = timer();
    counter_malloc = 0;
    size_malloc = 0.0;
+   num_objects = object_num = 0;
 
    /* set initial values */
    if (!my_pe) {
+      // Reading parameters
       for (i = 1; i < argc; i++)
          if (!strcmp(argv[i], "--max_blocks"))
             max_num_blocks = atoi(argv[++i]);
@@ -94,9 +99,10 @@ int main(int argc, char** argv)
             report_diffusion = 1;
          else if (!strcmp(argv[i], "--error_tol"))
             error_tol = atoi(argv[++i]);
-         else if (!strcmp(argv[i], "--num_tsteps"))
+         else if (!strcmp(argv[i], "--num_tsteps")) {
             num_tsteps = atoi(argv[++i]);
-         else if (!strcmp(argv[i], "--time")) {
+            use_tsteps = 1;
+         } else if (!strcmp(argv[i], "--time")) {
             end_time = atof(argv[++i]);
             use_time = 1;
          } else if (!strcmp(argv[i], "--stages_per_ts"))
@@ -113,8 +119,28 @@ int main(int argc, char** argv)
             plot_freq = atoi(argv[++i]);
          else if (!strcmp(argv[i], "--code"))
             code = atoi(argv[++i]);
+         else if (!strcmp(argv[i], "--blocking_send"))
+            nonblocking = 0;
          else if (!strcmp(argv[i], "--refine_ghost"))
             refine_ghost = 1;
+         else if (!strcmp(argv[i], "--change_dir"))
+            change_dir = 1;
+         else if (!strcmp(argv[i], "--group_blocks"))
+            group_blocks = 1;
+         else if (!strcmp(argv[i], "--break_ties"))
+            group_blocks = 2;
+         else if (!strcmp(argv[i], "--limit_move"))
+            limit_move = atoi(argv[++i]);
+         else if (!strcmp(argv[i], "--send_faces"))
+            send_faces = 1;
+         else if (!strcmp(argv[i], "--rcb"))
+            lb_method = 0;   // default, but included for completeness
+         else if (!strcmp(argv[i], "--morton"))
+            lb_method = 1;
+         else if (!strcmp(argv[i], "--hilbert"))
+            lb_method = 2;
+         else if (!strcmp(argv[i], "--trunc_hilbert"))
+            lb_method = 3;
          else if (!strcmp(argv[i], "--num_objects")) {
             num_objects = atoi(argv[++i]);
             objects = (object *) ma_malloc(num_objects*sizeof(object),
@@ -123,7 +149,7 @@ int main(int argc, char** argv)
          } else if (!strcmp(argv[i], "--object")) {
             if (object_num >= num_objects) {
                printf("object number greater than num_objects\n");
-               exit(-1);
+               MPI_Abort(MPI_COMM_WORLD, -1);
             }
             objects[object_num].type = atoi(argv[++i]);
             objects[object_num].bounce = atoi(argv[++i]);
@@ -148,12 +174,26 @@ int main(int argc, char** argv)
             print_help_message();
             MPI_Abort(MPI_COMM_WORLD, -1);
          }
+
+      if (object_num != num_objects) {
+         printf("Error - number of objects less than specified");
+         MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+
+      if (reorder == -1) {
+         if (!lb_method)
+            reorder = 1;
+         else
+            reorder = 0;
+      }
+
       if (check_input())
-         exit(-1);
+         MPI_Abort(MPI_COMM_WORLD, -1);
 
       if (!block_change)
          block_change = num_refine;
 
+      // Exchange parameters
       params[ 0] = max_num_blocks;
       params[ 1] = num_refine;
       params[ 2] = uniform_refine;
@@ -184,11 +224,19 @@ int main(int argc, char** argv)
       params[27] = block_change;
       params[28] = code;
       params[29] = permute;
-      params[30] = refine_ghost;
-      params[31] = use_time;
-      params[32] = end_time;
+      params[30] = nonblocking;
+      params[31] = refine_ghost;
+      params[32] = use_time;
+      params[33] = change_dir;
+      params[34] = group_blocks;
+      params[35] = limit_move;
+      params[36] = send_faces;
+      params[37] = lb_method;
+      params[38] = use_tsteps;
 
-      MPI_Bcast(params, 33, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(params, 39, MPI_INT, 0, MPI_COMM_WORLD);
+      if (use_time)
+         MPI_Bcast(&end_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       objs = (double *) ma_malloc(14*num_objects*sizeof(double),
                                   __FILE__, __LINE__);
@@ -212,7 +260,8 @@ int main(int argc, char** argv)
       MPI_Bcast(objs, (14*num_objects), MPI_DOUBLE, 0, MPI_COMM_WORLD);
       free(objs);
    } else {
-      MPI_Bcast(params, 33, MPI_INT, 0, MPI_COMM_WORLD);
+      // Exchange parameters
+      MPI_Bcast(params, 39, MPI_INT, 0, MPI_COMM_WORLD);
       max_num_blocks = params[ 0];
       num_refine = params[ 1];
       uniform_refine = params[ 2];
@@ -243,9 +292,18 @@ int main(int argc, char** argv)
       block_change = params[27];
       code = params[28];
       permute = params[29];
-      refine_ghost = params[30];
-      use_time = params[31];
-      end_time = params[32];
+      nonblocking = params[30];
+      refine_ghost = params[31];
+      use_time = params[32];
+      change_dir = params[33];
+      group_blocks = params[34];
+      limit_move = params[35];
+      send_faces = params[36];
+      lb_method = params[37];
+      use_tsteps = params[38];
+
+      if (use_time)
+         MPI_Bcast(&end_time, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       objects = (object *) ma_malloc(num_objects*sizeof(object),
                                      __FILE__, __LINE__);
@@ -279,13 +337,32 @@ int main(int argc, char** argv)
          objects[object_num].orig_size[i] = objects[object_num].size[i];
       }
 
+   // Allocate resources needed for calculation
    allocate();
 
+   if (lb_method >= 2) {
+      init_x = npx*init_block_x;
+      init_y = npy*init_block_y;
+      init_z = npz*init_block_z;
+   } else {
+      // above will be done later for this case
+      init_x = npx;
+      init_y = npy;
+      init_z = npz;
+   }
+
+   timer_main = timer() - t1;
    driver();
 
    profile();
 
+   // Deallocate resources needed for calculation
    deallocate();
+
+   // End all MPI instances
+   fflush(NULL);
+
+   MPI_Barrier(MPI_COMM_WORLD);
 
    MPI_Finalize();
 
@@ -325,11 +402,19 @@ void print_help_message(void)
    printf("--error_tol - (e^{-error_tol} ; >= 0) \n");
    printf("--report_diffusion - report check sums for each variable\n");
    printf("--report_perf - 0, 1, 2\n");
-   printf("--plot_freq - frequency (timesteps) of plotting (0 for none)\n");
+   printf("--plot_freq - frequency (timesteps) of plotting (0 for none)\n"); //missing in Readme
    printf("--code - closely minic communication of different codes\n");
    printf("         0 minimal sends, 1 send ghosts, 2 send ghosts and process on send\n");
    printf("--permute - altenates directions in communication\n");
+   printf("--blocking_send - use blocking sends instead of nonblocking\n");
    printf("--refine_ghost - use full extent of block (including ghosts) to determine if block is refined\n");
+   printf("--change_dir - allow the RCB algorithm to change the directions of the cuts each load balance step\n");
+   printf("--group_blocks - change the RCB algorithm so that a group of blocks with the same center all get put onto the same side of a cut\n");
+   printf("--limit_move - limit the number of blocks that can be moved during load balance (number that is a percentage of the total number of blocks)\n");
+   printf("--send_faces - send each face individually instead of packing all faces going to a rank together\n");
+   printf("--rcb - use RCB algorithm for load balancing (default)\n");
+   printf("--morton - use Morton Space Filling Curve algorithm for load balancing\n");
+   printf("--hilbert - use Hilbert like Space Filling Curve algorithm for load balancing\n");
    printf("--num_objects - (>= 0) number of objects to cause refinement\n");
    printf("--object - type, position, movement, size, size rate of change\n");
 
@@ -383,14 +468,20 @@ void allocate(void)
    for (n = 0; n < max_num_parents; n++)
       parents[n].number = -1;
 
-   max_num_dots = 2*max_num_blocks;     // Guess at number needed
-   dots = (dot *) ma_malloc(max_num_dots*sizeof(dot), __FILE__, __LINE__);
-   for (n = 0; n < max_num_dots; n++)
-      dots[n].number = -1;
+   max_num_dots = 3*max_num_blocks;     // Guess at number needed
+   if (!lb_method) {
+      dots = (dot *) ma_malloc(max_num_dots*sizeof(dot), __FILE__, __LINE__);
+      for (n = 0; n < max_num_dots; n++)
+         dots[n].number = -1;
+   } else {
+      spots = (spot *) ma_malloc(max_num_dots*sizeof(spot), __FILE__, __LINE__);
+      for (n = 0; n < max_num_dots; n++)
+         spots[n].number = -1;
+   }
 
    grid_sum = (double *)ma_malloc(num_vars*sizeof(double), __FILE__, __LINE__);
 
-   p8 = (int *) ma_malloc((num_refine+2)*sizeof(int), __FILE__, __LINE__);
+   p8 = (num_sz *) ma_malloc((num_refine+2)*sizeof(num_sz), __FILE__, __LINE__);
    p2 = (int *) ma_malloc((num_refine+2)*sizeof(int), __FILE__, __LINE__);
    block_start = (num_sz *) ma_malloc((num_refine+1)*sizeof(num_sz),
                                       __FILE__, __LINE__);
@@ -493,8 +584,8 @@ void allocate(void)
    if (num_refine) {
       s_buf_size = (int) (0.10*((double)max_num_blocks))*comm_vars*
                    (x_block_size+2)*(y_block_size+2)*(z_block_size+2);
-      if (s_buf_size < (num_vars*x_block_size*y_block_size*z_block_size + 47))
-         s_buf_size = num_vars*x_block_size*y_block_size*z_block_size + 47;
+      if (s_buf_size < (num_vars*x_block_size*y_block_size*z_block_size + 49))
+         s_buf_size = num_vars*x_block_size*y_block_size*z_block_size + 49;
       r_buf_size = 5*s_buf_size;
    } else {
       i = init_block_x*(x_block_size+2);
@@ -517,8 +608,8 @@ void allocate(void)
                                     __FILE__, __LINE__);
 
    if (!stencil)
-      alpha = (double *) ma_malloc((num_vars/4)*sizeof(double),
-                                   __FILE__, __LINE__);
+      a0 = (double *) ma_malloc((num_vars/4)*sizeof(double),
+                                __FILE__, __LINE__);
 }
 
 // =================================== deallocate ============================

@@ -37,11 +37,13 @@
 void move(double delta)
 {
    int i, j;
+   double tmp;
 
    for (i = 0; i < num_objects; i++)
       for (j = 0; j < 3; j++) {
          objects[i].cen[j] += delta*objects[i].move[j];
-         if (objects[i].bounce)
+         objects[i].size[j] += delta*objects[i].inc[j];
+         if (objects[i].bounce == 1) {
             if (objects[i].cen[j] >= 1.0) {
                objects[i].cen[j] = 2.0 - objects[i].cen[j];
                objects[i].move[j] = -objects[i].move[j];
@@ -49,17 +51,20 @@ void move(double delta)
                objects[i].cen[j] = 0.0 - objects[i].cen[j];
                objects[i].move[j] = -objects[i].move[j];
             }
-         objects[i].size[j] += delta*objects[i].inc[j];
+         } else if (objects[i].bounce == 2) {
+            if ((tmp = objects[i].cen[j]+objects[i].size[j]) >= 1.0) {
+               objects[i].cen[j] -= tmp - 1.0;
+               objects[i].move[j] = -objects[i].move[j];
+            } else if ((tmp = objects[i].cen[j]-objects[i].size[j]) <= 0.0) {
+               objects[i].cen[j] -= tmp;
+               objects[i].move[j] = -objects[i].move[j];
+            }
+         }
       }
 }
 
 void check_objects(void)
 {
-   int sz, in, c;
-   double cor[3][2]; /* extent of block */
-   block *bp;
-   parent *pp;
-
 /* only need to check corners to refine
  *  * if boundary is in block refine if not level max_level block.refine = 1
  *   * else if not level 0 then block.refine = -1  (unrefine)
@@ -68,10 +73,11 @@ void check_objects(void)
  *    * cylinder, solid cylinder (in three directions)
  *    * (later) diamond, solid diamond */
 
-#pragma omp parallel for private (cor, sz, bp)
-   for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      bp = &blocks[sorted_list[in].n];
-      sz = p2[num_refine - bp->level]; /* half size of block */
+   #pragma omp parallel for shared(sorted_index, num_refine, blocks, sorted_list, p2, mesh_size, refine_ghost, x_block_size, y_block_size, z_block_size, my_pe, parents)
+   for(int in = 0; in < sorted_index[num_refine+1]; in++) {
+      double cor[3][2]; /* extent of block */
+      block* bp = &blocks[sorted_list[in].n];
+      int sz = p2[num_refine - bp->level]; /* half size of block */
       cor[0][0] = ((double) (bp->cen[0] - sz))/((double) mesh_size[0]);
       cor[0][1] = ((double) (bp->cen[0] + sz))/((double) mesh_size[0]);
       cor[1][0] = ((double) (bp->cen[1] - sz))/((double) mesh_size[1]);
@@ -97,7 +103,7 @@ void check_objects(void)
       else if (refine_ghost && bp->level) {
          /* check if this block would unrefine, but its parent would then
           * refine.  Then leave it alone */
-         sz = p2[num_refine - bp->level + 1]; /* half size of parent */
+         int sz = p2[num_refine - bp->level + 1]; /* half size of parent */
          cor[0][0] -= (((double) sz)/((double) x_block_size))/
                       ((double) mesh_size[0]);
          cor[0][1] += (((double) sz)/((double) x_block_size))/
@@ -113,17 +119,14 @@ void check_objects(void)
          if (check_block(cor))
             bp->refine = 0;
       }
-   }
 
-   /* if at max refinement, then can not refine */
-   for (in = 0; in < sorted_index[num_refine+1]; in++) {
-      bp = &blocks[sorted_list[in].n];
+      /* if at max refinement, then can not refine */
       if ((bp->level == num_refine && bp->refine == 1) || !bp->refine) {
          bp->refine = 0;
          if (bp->parent != -1 && bp->parent_node == my_pe) {
-            pp = &parents[bp->parent];
+            parent* pp = &parents[bp->parent];
             pp->refine = 0;
-            for (c = 0; c < 8; c++)
+            for (int c = 0; c < 8; c++)
                if (pp->child_node[c] == my_pe && pp->child[c] >= 0)
                   if (blocks[pp->child[c]].refine == -1)
                      blocks[pp->child[c]].refine = 0;
