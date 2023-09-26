@@ -1,15 +1,15 @@
-CC   = cc
-LD   = cc
+CC   = mpicc
+LD   = mpicc
 CPPFLAGS = -I.
 CFLAGS = -O3 -fopenmp
 LDFLAGS =
 LDLIBS = -lm -lgomp
 
-EXEC = ma.x
+EXEC = miniAMR.x
 
 OBJS = block.o check_sum.o comm_block.o comm.o comm_parent.o comm_refine.o \
        comm_util.o driver.o init.o main.o move.o pack.o plot.o profile.o \
-       rcb.o refine.o stencil.o util.o
+       rcb.o refine.o sfc.o stencil.o util.o
 
 $(EXEC): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
@@ -18,13 +18,13 @@ $(EXEC): $(OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 clean:
-	rm *.o ma.x
+	rm *.o miniAMR.x
 
 # need dependencies
 
 block.o: block.h proto.h comm.h timer.h
 
-check_sum.o: block.h comm.h proto.h
+check_sum.o: block.h comm.h proto.h timer.h
 
 comm_block.o: block.h comm.h proto.h
 
@@ -40,7 +40,7 @@ driver.o: block.h comm.h proto.h timer.h
 
 init.o: block.h proto.h comm.h
 
-main.o: block.h comm.h proto.h param.h
+main.o: block.h comm.h proto.h param.h timer.h
 
 move.o: block.h comm.h proto.h
 
@@ -54,6 +54,8 @@ rcb.o: block.h comm.h proto.h timer.h
 
 refine.o: block.h comm.h proto.h timer.h
 
+sfc.o: block.h comm.h proto.h timer.h
+
 stencil.o: block.h comm.h proto.h
 
-util.o: block.h comm.h proto.h
+util.o: block.h comm.h proto.h timer.h

@@ -132,11 +132,12 @@ void add_comm_list(int dir, int block_f, int pe, int fcase, int pos, int pos1)
          }
       }
 
-      if (i == num_comm_partners[dir])
+      if (i == num_comm_partners[dir]) {
          if (i == 0)
             comm_index[dir][i] = 0;
          else
             comm_index[dir][i] = comm_index[dir][i-1] + comm_num[dir][i-1];
+      }
       num_comm_partners[dir]++;
       comm_partner[dir][i] = pe;
       send_size[dir][i] = s_len;
@@ -320,10 +321,19 @@ void check_buff_size(void)
    int i, j, max_send, max_comm, max_recv;
 
    for (max_send = max_comm = max_recv = i = 0; i < 3; i++) {
-      if (s_buf_num[i] > max_send)
-         max_send = s_buf_num[i];
-      if (num_comm_partners[i] > max_comm)
-         max_comm = num_comm_partners[i];
+      if (nonblocking) {
+         if (s_buf_num[i] > max_send)
+            max_send = s_buf_num[i];
+      } else
+         for (j = 0; j < num_comm_partners[i]; j++)
+            if (send_size[i][j] > max_send)
+               max_send = send_size[i][j];
+      if (send_faces) {
+         if (num_cases[i] > max_comm)
+            max_comm = num_cases[i];
+      } else
+         if (num_comm_partners[i] > max_comm)
+            max_comm = num_comm_partners[i];
       if (r_buf_num[i] > max_recv)
          max_recv = r_buf_num[i];
    }
@@ -347,9 +357,11 @@ void check_buff_size(void)
       max_num_req = (int) (2.0*((double) max_comm));
       request = (MPI_Request *) ma_malloc(max_num_req*sizeof(MPI_Request),
                                           __FILE__, __LINE__);
-      free(s_req);
-      s_req = (MPI_Request *) ma_malloc(max_num_req*sizeof(MPI_Request),
-                                        __FILE__, __LINE__);
+      if (nonblocking) {
+         free(s_req);
+         s_req = (MPI_Request *) ma_malloc(max_num_req*sizeof(MPI_Request),
+                                           __FILE__, __LINE__);
+      }
    }
 }
 

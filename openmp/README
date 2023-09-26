@@ -7,6 +7,7 @@ Contents of this README file:
 3.      building miniAMR
 4.      running miniAMR
 5.      notes about the code
+6.      reference
 --------------------------------------
 
 --------------------------------------
@@ -52,9 +53,11 @@ variable to correspond with the flags available for the compiler being used.
 
    % <mpi-run-command> ./miniAMR.x
 
- where <mpi-run-command> varies from system to system but usually looks  something like 'mpirun -np 4 ' or similar.
+ where <mpi-run-command> varies from system to system but usually looks
+something like 'mpirun -np 4 ' or similar.
 
- Execution is then driven entirely by the default settings, as configured in default-settings.h. Options may be listed using
+ Execution is then driven entirely by the default settings, as configured
+in param.h. Options may be listed using
 
     % ./miniAMR.x --help
 
@@ -64,8 +67,9 @@ The list of arguments and their defaults is as follows:
    --nx - block size in x
    --ny - block size in y
    --nz - block size in z
-      These control the size of the blocks in the mesh.  All of these need to
-      be even and greater than zero.  The default is 10 for each variable.
+      These control the number of cells in the blocks in the mesh.  All of
+      these need to be even and greater than zero.  The default is 10 for
+      each variable.
 
    --init_x - initial blocks in x
    --init_y - initial blocks in y
@@ -77,15 +81,36 @@ The list of arguments and their defaults is as follows:
 
    --reorder - ordering of blocks
       This controls whether the blocks are ordered by the RCB algorithm
-      or by a natural ordering of the processors.  The default is 1 which
-      selects the RCB ordering and the natural ordering is 0.
+      or by a natural ordering of the processors.  A setting of 1 selects
+      the RCB ordering and the natural ordering is 0.  The default depends
+      on which load balance algorithm is chosen.  If the RCB algorithm is
+      chosen then the default is the RCB ordering and if one of the space
+      filling curve algorithms is chosen then the default is the natural
+      ordering, which does not matter if the Hilbert ordering is chosen
+      since it ignores this for the initial placement of blocks.
+
+   --rcb or --morton or --hilbert or --trunc_hilbert - chooses the algorithm
+                                                       for load balancing
+      These options choose the load balance algorithm.  This option also
+      affects the initial ordering of the blocks as a side effect.  The
+      Recursive Coordinate Bisection (RCB) algorithm is the default, but the
+      option in included for completeness.  The other option are Space Filling
+      Curves.  The "--morton" option chooses a Morton style space filling
+      curve while the "--hilbert" chooses a Hilbert like space filling curve.
+      If each dimension starts with the same power of two number of blocks
+      then a Hilbert curve is constructed, but if there are uneven factors
+      of two or odd factors, this option uses a three dimensional Peano curve
+      to construct the initial ordering.  The --trunc_hilbert starts by
+      constructing a Hilbert curve that contains the initial layout of the
+      blocks and then, if necessary, truncates it in each direction, connecting
+      the remaining blocks in the order they occurred in the Hilbert curve.
 
    --npx - number of processors in the x direction
    --npy - number of processors in the y direction
    --npz - number of processors in the z direction
       These control the number of processors is each direction.  The product
       of these number has to equal the number of processors being used.  The
-      default is 1 block in each direction.
+      default is 1 processor in each direction.
 
    --max_blocks - maximun number of blocks per processor
       The maximun number of blocks used per processor.  This is the number of
@@ -105,11 +130,14 @@ The list of arguments and their defaults is as follows:
    --uniform_refine - if 1, then grid is uniformly refined
       This controls whether the mesh is uniformly refined.  If it is 1 then the
       mesh will be uniformly refined, while if it is zero, the refinement will
-      be controlled by objects in the mesh.  The default is 1.
+      be controlled by objects in the mesh.  The default is 0.
 
-   --refine_freq - frequency (in timesteps) of checking for refinement
-      This determines the frequency (in timesteps) between checking if
-      refinement is needed.  The default is every 5 timesteps.
+   --refine_freq - frequency (timesteps) of refinement (0 for none)
+      This determines how frequently (in timesteps) the mesh is checked
+      and refinement is done.  The default is every 5 timesteps.  If
+      uniform refinement is turned on, the setting of refine_freq does
+      not matter and the mesh will be refined before the first timestep.
+
 
    --inbalance - percentage inbalance to trigger inbalance
       This parameter allows the user to set a percentage threshold above
@@ -133,9 +161,9 @@ The list of arguments and their defaults is as follows:
 
    --comm_vars - number of vars to communicate together
       The number of variables that will communicated together.  This will
-      allow shorter but more variables if it is set to something less than
-      the total number of variables.  The default is zero which will
-      communicate all of the variables at once.
+      allow shorter but more frequent messages if it is set to something
+      less than the total number of variables.  The default is zero which
+      will communicate all of the variables at once.
 
    --num_tsteps - number of timesteps (> 0)
       The number of timesteps for which the simulation will be run.  The
@@ -145,8 +173,10 @@ The list of arguments and their defaults is as follows:
    --time - length of simulation (> 0.0)
       The amount of time to run the simulation where the delta is determined
       by the largest number such that an object boundary does not move more
-      than the size of the smallest cell.  If this option is chosen, then
-      the --num_tsteps option is ignored.
+      than the size of the smallest cell.  If this option is chosen and the
+      --num_tsteps option is used, then the code will run for this amount of
+      time in the number of timesteps chosen and the above calculation will
+      not be made.
 
    --stages_per_ts - number of comm/calc stages per timestep
       The number of calculate/communicate stages per timestep.  The default
@@ -156,6 +186,9 @@ The list of arguments and their defaults is as follows:
       If this is set, then the order of the communication directions will
       be permuted through the six options available.  The default is
       to send messages in the x direction first, then y, and then z.
+
+   --blocking_send - (no argument) Use blocking sends in the communication
+      routine instead of the default nonblocking sends.
 
    --code - change the way communication is done
       The default is 0 which communicates only the ghost values that are
@@ -176,7 +209,7 @@ The list of arguments and their defaults is as follows:
       calculations are used and the calculation for the first variable uses
       a seven point stencil to conserve the sum to show correctness.
 
-   --error_tol - (e^{-error_tol} ; >= 0) 
+   --error_tol - (e^{-error_tol} ; >= 0)
       This determines the error tolerance for the checksums for the variables.
       the tolerance is 10 to the negative power of error_tol.  The default
       is 8, so the default tolerance is 10^(-8).
@@ -189,7 +222,7 @@ The list of arguments and their defaults is as follows:
       This determines how the performance output is displayed.  The default
       is YAML output (value of 1).  There are four output modes and each is
       controlled by a bit in the value.  The YAML output (to a file called
-      results.yaml) is controlled by the first bit (report_perf & 1), the 
+      results.yaml) is controlled by the first bit (report_perf & 1), the
       text output file (results.txt) is controlled by the second bit
       (report_perf & 2), the output to standard out is controlled by the
       third bit (report_perf & 4), and the output of block decomposition
@@ -198,16 +231,35 @@ The list of arguments and their defaults is as follows:
       of these options can be used in any run.  Setting report_perf to 0
       will result in no output.
 
-   --refine_freq - frequency (timesteps) of refinement (0 for none)
-      This determines how frequently (in timesteps) the mesh is checked
-      and refinement is done.  The default is every 5 timesteps.  If
-      uniform refinement is turned on, the setting of refine_freq does
-      not matter and the mesh will be refined before the first timestep.
-
    --refine_ghosts - (no argument)
       The default is to not use the ghost cells of a block to determine if
       that block will be refined.  Specifying this flag will allow those
       ghost cells to be used.
+
+   --send_faces - (no argument)
+      The default is to bundle the data from faces that is going to be sent
+      from one rank to another in a specific direction.  This option sends
+      the data from each face seperately.
+
+   --change_dir - (no argument)
+   --group_blocks - (no argument)
+   --break_ties - (no argument)
+   --limit_move - (0 .. 100)
+      These four options allow the code to be closer to the behavior of
+      codes that we are studying.  The change_dir option allows the RCB
+      algorithm to change the directions of the cuts at each refinement
+      step instead of being determined by the first refinement step. For
+      the RCB algorithm, the group_blocks option causes all the blocks
+      whose centers lie on a cut line to end up on the same side of the
+      line instead of being divided and for the SFC algorithms, the
+      group_blocks option causes terminal octants that would be divided
+      to be kept together.  The break_ties option causes the RCB algorithm
+      to arbitrarily move blocks to one side or the other of a cut line when
+      there are ties instead of using the regular algorithm to divide them.
+      If both the group_blocks and break_ties are used, then the one that
+      is last on the command line will be used.  The limit_move option
+      causes the number of blocks that are moved during a load balance step
+      to be limited to a percentage of the number of blocks.
 
    --num_objects - (>= 0) number of objects to cause refinement
       The number of objects on which refinement is based.  Default is zero.
@@ -223,9 +275,11 @@ The list of arguments and their defaults is as follows:
              a solid spheroid (+/- with 3 cutting planes)(5, 7, 9, 11, 13, 15),
              the surface of a cylinder (20, 22, 24),
              and the volume of a cylinder (21, 23, 25).
-      bounce - If this is 1 then an object will bounce off of the walls
-               when the center hits an edge of the unit cube.  If it is
-               zero, then the object can leave the mesh.
+      bounce - If this is 1 then an object will bounce off of the walls when
+               the center hits a face of the unit cube.  If it is 2 then the
+               object will bounce when the edge of the object hits a face of
+               the unit cube.  If it is zero, then the object can leave the
+               mesh.
       center - Three doubles that determine the center of the object in the
                x, y, and z directions.
       move - Three doubles that determine the rate of movement of the center
@@ -277,6 +331,10 @@ mpirun -np 16 miniAMR.x --num_refine 4 --max_blocks 4000 --init_x 1 --init_y 1 -
    stencil.c       Perform stencil calculations
    util.c          Utility routines for timing and allocation
 
+-------------------
+6. Reference:
+
+Vaughan, Courtenay T., Richard Frederick Barrett, "Enabling Tractable Exploration of the Performance of Adaptive Mesh Refinement," Workshop Paper, Workshop on Representative Applications at IEEE Cluster, September 2015.
 -- End README file.
 
 Courtenay T. Vaughan

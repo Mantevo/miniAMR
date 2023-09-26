@@ -3,7 +3,7 @@
 // miniAMR: stencil computations with boundary exchange and AMR.
 //
 // Copyright (2014) Sandia Corporation. Under the terms of Contract
-// DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+// DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government 
 // retains certain rights in this software.
 //
 // This library is free software; you can redistribute it and/or modify
@@ -25,14 +25,12 @@
 // ************************************************************************
 
 #include <mpi.h>
-#include <omp.h>
 #include <math.h>
-
-#include <stdio.h>
 
 #include "block.h"
 #include "comm.h"
 #include "proto.h"
+
 void stencil_calc(int, int);
 void stencil_0(int);
 void stencil_x(int);
@@ -41,16 +39,13 @@ void stencil_z(int);
 void stencil_7(int);
 void stencil_27(int);
 void stencil_check(int);
-int num_cells;
 
 // This routine does the stencil calculations.
 void stencil_driver(int var, int cacl_stage)
 {
-   num_cells = x_block_size*y_block_size*z_block_size;
-
    if (stencil)
       stencil_calc(var, stencil);
-   else
+   else {
       if (!var)
          stencil_calc(var, 7);
       else if (var < 4*mat) {
@@ -76,22 +71,20 @@ void stencil_driver(int var, int cacl_stage)
          }
          stencil_check(var);
       } else
-          stencil_calc(var, 7);
+         stencil_calc(var, 7);
+   }
 }
 
 void stencil_calc(int var, int stencil_in)
 {
-   int i, j, k, in;
-   double sb, sm, sf, work[x_block_size+2][y_block_size+2][z_block_size+2];
-   block *bp;
-
-   int tid;
+   int i, j, k;
 
    if (stencil_in == 7) {
-#pragma omp parallel default(shared) private(i, j, k, bp)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
+      // Parallelize
+      #pragma omp parallel for shared(sorted_index, num_refine, blocks, sorted_list, x_block_size, y_block_size, z_block_size)
+      for(int in = 0; in < sorted_index[num_refine+1]; in++) {
+         block* bp = &blocks[sorted_list[in].n];
+         double work[x_block_size+2][y_block_size+2][z_block_size+2];
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
@@ -107,15 +100,14 @@ void stencil_calc(int var, int stencil_in)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
-
       total_fp_divs += (double) num_active*num_cells;
       total_fp_adds += (double) 6*num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private (i, j, k, bp, sb, sm, sf)
-{
-      for (in = 0; in < sorted_index[num_refine+1]; in++) {
-         bp = &blocks[sorted_list[in].n];
+      // Parallelize
+      #pragma omp parallel for shared(sorted_index, num_refine, blocks, sorted_list, x_block_size, y_block_size, z_block_size)
+      for(int in = 0; in < sorted_index[num_refine+1]; in++) {
+         block* bp = &blocks[sorted_list[in].n];
+         double sb, sm, sf, work[x_block_size+2][y_block_size+2][z_block_size+2];
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++) {
@@ -153,8 +145,6 @@ void stencil_calc(int var, int stencil_in)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
-
       total_fp_divs += (double) num_active*num_cells;
       total_fp_adds += (double) 26*num_active*num_cells;
    }
@@ -166,8 +156,7 @@ void stencil_0(int var)
    block *bp;
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -177,13 +166,10 @@ void stencil_0(int var)
                      bp->array[var][i][j][k] += bp->array[v][i][j][k]*
                                                 bp->array[0][i][j][k];
       }
-}
-
       total_fp_adds += (double) mat*num_active*num_cells;
       total_fp_muls += (double) mat*num_active*num_cells;
     } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -192,15 +178,12 @@ void stencil_0(int var)
                   bp->array[var][i][j][k] += bp->array[var][i][j][k]*
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k]);
+                                              a1*bp->array[var][i][j][k]);
       }
-}
-
       total_fp_adds += (double) 3*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -209,51 +192,44 @@ void stencil_0(int var)
                   bp->array[var][i][j][k] = bp->array[var][i][j][k]*
                                             (bp->array[0][i][j][k] +
                                              bp->array[var][i][j][k] +
-                                             beta*bp->array[var+mat][i][j][k] +
-                                     (1.0-beta)*bp->array[var+2*mat][i][j][k])/
+                                             a1*bp->array[var+mat][i][j][k] +
+                                       (1.0-a1)*bp->array[var+2*mat][i][j][k])/
                                             bp->array[1][i][j][k];
       }
-}
-
       total_fp_adds += (double) 3*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] += bp->array[var-mat][i][j][k]*
-                                             (beta*bp->array[0][i][j][k] +
-                                     alpha[var-2*mat]*bp->array[var][i][j][k] +
-                                       (1.0-beta)*bp->array[var+mat][i][j][k])/
+                                             (a1*bp->array[0][i][j][k] +
+                                        a0[var-2*mat]*bp->array[var][i][j][k] +
+                                         (1.0-a1)*bp->array[var+mat][i][j][k])/
                                              bp->array[1][i][j][k];
          }
-}
-
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] += bp->array[var-2*mat][i][j][k]*
-                                             (beta*bp->array[0][i][j][k] +
-                                     alpha[var-3*mat]*bp->array[var][i][j][k] +
-                           (1.0-alpha[var-3*mat])*bp->array[var-mat][i][j][k] +
-                                     (1.0-beta)*bp->array[var-2*mat][i][j][k])/
+                                             (a1*bp->array[0][i][j][k] +
+                                        a0[var-3*mat]*bp->array[var][i][j][k] +
+                              (1.0-a0[var-3*mat])*bp->array[var-mat][i][j][k] +
+                                       (1.0-a1)*bp->array[var-2*mat][i][j][k])/
                                              (bp->array[1][i][j][k]*
                                               bp->array[1][i][j][k]);
          }
-}
       total_fp_adds += (double) 6*num_active*num_cells;
       total_fp_muls += (double) 6*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
@@ -267,8 +243,7 @@ void stencil_x(int var)
    block *bp;
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -277,16 +252,14 @@ void stencil_x(int var)
                   for (v = 2; v < mat+2; v++)
                      bp->array[1][i][j][k] += bp->array[v][i][j][k]*
                                               bp->array[0][i][j][k];
-                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
+                  bp->array[1][i][j][k] /= (a1 + bp->array[1][i][j][k]);
                }
       }
-}
       total_fp_adds += (double) (mat+1)*num_active*num_cells;
       total_fp_muls += (double) mat*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -295,16 +268,14 @@ void stencil_x(int var)
                   bp->array[var][i][j][k] += bp->array[var][i][j][k]*
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k])/
-                                          (alpha[var] + bp->array[1][i][j][k]);
+                                              a1*bp->array[var][i][j][k])/
+                                             (a0[var] + bp->array[1][i][j][k]);
       }
-}
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -318,7 +289,7 @@ void stencil_x(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-mat] +
+                                              (a1 + a0[var-mat] +
                                                bp->array[var][i-1][j][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i+1][j][k] +
@@ -329,20 +300,18 @@ void stencil_x(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-mat] +
+                                              (a1 + a0[var-mat] +
                                                bp->array[var][i-1][j][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i+1][j][k] +
                                                bp->array[0][i][j][k] +
                                                bp->array[1][i][j][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -356,7 +325,7 @@ void stencil_x(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-2*mat] +
+                                              (a1 + a0[var-2*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var+mat][i][j][k] +
                                                bp->array[var][i-1][j][k] +
@@ -367,20 +336,18 @@ void stencil_x(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-2*mat] +
+                                              (a1 + a0[var-2*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var+mat][i][j][k] +
                                                bp->array[var][i-1][j][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i+1][j][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -394,7 +361,7 @@ void stencil_x(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-3*mat] +
+                                              (a1 + a0[var-3*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var-2*mat][i][j][k] +
                                                bp->array[var][i-1][j][k] +
@@ -405,14 +372,13 @@ void stencil_x(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i+1][j][k])/
-                                              (beta + alpha[var-3*mat] +
+                                              (a1 + a0[var-3*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var-2*mat][i][j][k] +
                                                bp->array[var][i-1][j][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i+1][j][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
@@ -426,27 +392,25 @@ void stencil_y(int var)
    block *bp;
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
+      {
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
-#pragma omp for
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++) {
                   for (v = 2; v < mat+2; v++)
                      bp->array[1][i][j][k] += bp->array[v][i][j][k]*
                                               bp->array[0][i][j][k];
-                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
+                  bp->array[1][i][j][k] /= (a1 + bp->array[1][i][j][k]);
                }
       }
-}
+      }
       total_fp_adds += (double) (mat+1)*num_active*num_cells;
       total_fp_muls += (double) mat*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -455,16 +419,14 @@ void stencil_y(int var)
                   bp->array[var][i][j][k] += bp->array[var][i][j][k]*
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k])/
-                                          (alpha[var] + bp->array[1][i][j][k]);
+                                              a1*bp->array[var][i][j][k])/
+                                             (a0[var] + bp->array[1][i][j][k]);
       }
-}
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -478,7 +440,7 @@ void stencil_y(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-mat] +
+                                              (a1 + a0[var-mat] +
                                                bp->array[var][i][j-1][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j+1][k] +
@@ -489,20 +451,18 @@ void stencil_y(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-mat] +
+                                              (a1 + a0[var-mat] +
                                                bp->array[var][i][j-1][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j+1][k] +
                                                bp->array[0][i][j][k] +
                                                bp->array[1][i][j][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -516,7 +476,7 @@ void stencil_y(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-2*mat] +
+                                              (a1 + a0[var-2*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var+mat][i][j][k] +
                                                bp->array[var][i][j-1][k] +
@@ -527,20 +487,18 @@ void stencil_y(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-2*mat] +
+                                              (a1 + a0[var-2*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var+mat][i][j][k] +
                                                bp->array[var][i][j-1][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j+1][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -554,7 +512,7 @@ void stencil_y(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-3*mat] +
+                                              (a1 + a0[var-3*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var-2*mat][i][j][k] +
                                                bp->array[var][i][j-1][k] +
@@ -565,14 +523,13 @@ void stencil_y(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j+1][k])/
-                                              (beta + alpha[var-3*mat] +
+                                              (a1 + a0[var-3*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var-2*mat][i][j][k] +
                                                bp->array[var][i][j-1][k] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j+1][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
@@ -587,8 +544,7 @@ void stencil_z(int var)
 
 
    if (var == 1) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -597,17 +553,14 @@ void stencil_z(int var)
                   for (v = 2; v < mat+2; v++)
                      bp->array[1][i][j][k] += bp->array[v][i][j][k]*
                                               bp->array[0][i][j][k];
-                  bp->array[1][i][j][k] /= (beta + bp->array[1][i][j][k]);
+                  bp->array[1][i][j][k] /= (a1 + bp->array[1][i][j][k]);
                }
       }
-}
-
       total_fp_adds += (double) (mat+1)*num_active*num_cells;
       total_fp_muls += (double) mat*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -616,16 +569,14 @@ void stencil_z(int var)
                   bp->array[var][i][j][k] += bp->array[var][i][j][k]*
                                              (bp->array[0][i][j][k] +
                                               bp->array[1][i][j][k] -
-                                              beta*bp->array[var][i][j][k])/
-                                          (alpha[var] + bp->array[1][i][j][k]);
+                                              a1*bp->array[var][i][j][k])/
+                                             (a0[var] + bp->array[1][i][j][k]);
       }
-}
       total_fp_adds += (double) 4*num_active*num_cells;
       total_fp_muls += (double) 2*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -639,7 +590,7 @@ void stencil_z(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-mat] +
+                                              (a1 + a0[var-mat] +
                                                bp->array[var][i][j][k-1] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j][k+1] +
@@ -650,20 +601,18 @@ void stencil_z(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-mat] +
+                                              (a1 + a0[var-mat] +
                                                bp->array[var][i][j][k-1] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j][k+1] +
                                                bp->array[0][i][j][k] +
                                                bp->array[1][i][j][k]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -677,7 +626,7 @@ void stencil_z(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-2*mat] +
+                                              (a1 + a0[var-2*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var+mat][i][j][k] +
                                                bp->array[var][i][j][k-1] +
@@ -688,20 +637,18 @@ void stencil_z(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-2*mat] +
+                                              (a1 + a0[var-2*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var+mat][i][j][k] +
                                                bp->array[var][i][j][k-1] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j][k+1]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v, tmp1, tmp2)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v, tmp1, tmp2)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -715,7 +662,7 @@ void stencil_z(int var)
                                          (tmp1-tmp2)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-3*mat] +
+                                              (a1 + a0[var-3*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var-2*mat][i][j][k] +
                                                bp->array[var][i][j][k-1] +
@@ -726,14 +673,13 @@ void stencil_z(int var)
                                          (tmp2-tmp1)*(bp->array[var][i][j][k] +
                                                        bp->array[1][i][j][k]) +
                                                tmp2*bp->array[var][i][j][k+1])/
-                                              (beta + alpha[var-3*mat] +
+                                              (a1 + a0[var-3*mat] +
                                                bp->array[var-mat][i][j][k] +
                                                bp->array[var-2*mat][i][j][k] +
                                                bp->array[var][i][j][k-1] +
                                                bp->array[var][i][j][k] +
                                                bp->array[var][i][j][k+1]);
       }
-}
       total_fp_adds += (double) 12*num_active*num_cells;
       total_fp_muls += (double) 3*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
@@ -747,8 +693,7 @@ void stencil_7(int var)
    block *bp;
 
    if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -768,19 +713,17 @@ void stencil_7(int var)
                                    bp->array[var+2*mat][i  ][j+1][k  ] +
                                    bp->array[var      ][i+1][j  ][k  ]*
                                    bp->array[var+  mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
+                                   7.0*(a1 + bp->array[var][i][j][k]);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
       total_fp_adds += (double) 7*num_active*num_cells;
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -800,19 +743,17 @@ void stencil_7(int var)
                                    bp->array[var+2*mat][i  ][j+1][k  ] +
                                    bp->array[var      ][i+1][j  ][k  ]*
                                    bp->array[var+  mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
+                                   7.0*(a1 + bp->array[var][i][j][k]);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
       total_fp_adds += (double) 7*num_active*num_cells;
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -832,19 +773,17 @@ void stencil_7(int var)
                                    bp->array[var-2*mat][i  ][j+1][k  ] +
                                    bp->array[var      ][i+1][j  ][k  ]*
                                    bp->array[var+  mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
+                                   7.0*(a1 + bp->array[var][i][j][k]);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
       total_fp_adds += (double) 7*num_active*num_cells;
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -864,13 +803,12 @@ void stencil_7(int var)
                                    bp->array[var-2*mat][i  ][j+1][k  ] +
                                    bp->array[var      ][i+1][j  ][k  ]*
                                    bp->array[var-3*mat][i+1][j  ][k  ])/
-                                   7.0*(beta + bp->array[var][i][j][k]);
+                                   7.0*(a1 + bp->array[var][i][j][k]);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
       total_fp_adds += (double) 7*num_active*num_cells;
       total_fp_muls += (double) 8*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
@@ -884,11 +822,9 @@ void stencil_27(int var)
    block *bp;
 
    if (var < mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
-#pragma omp for
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
@@ -919,18 +855,16 @@ void stencil_27(int var)
                                    bp->array[var+3*mat][i+1][j+1][k-1] +
                                    bp->array[var+2*mat][i+1][j+1][k  ] +
                                    bp->array[var+3*mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
+                                  (a1+27.0);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 2*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -963,19 +897,16 @@ void stencil_27(int var)
                                    bp->array[var-  mat][i+1][j+1][k-1] +
                                    bp->array[var+2*mat][i+1][j+1][k  ] +
                                    bp->array[var-  mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
+                                  (a1+27.0);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
-
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else if (var < 3*mat) {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -1008,18 +939,16 @@ void stencil_27(int var)
                                    bp->array[var-  mat][i+1][j+1][k-1] +
                                    bp->array[var-2*mat][i+1][j+1][k  ] +
                                    bp->array[var-  mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
+                                  (a1+27.0);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    } else {
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+      //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
       for (in = 0; in < sorted_index[num_refine+1]; in++) {
          bp = &blocks[sorted_list[in].n];
          for (i = 1; i <= x_block_size; i++)
@@ -1052,14 +981,12 @@ void stencil_27(int var)
                                    bp->array[var-  mat][i+1][j+1][k-1] +
                                    bp->array[var-2*mat][i+1][j+1][k  ] +
                                    bp->array[var-  mat][i+1][j+1][k+1])/
-                                  (beta+27.0);
+                                  (a1+27.0);
          for (i = 1; i <= x_block_size; i++)
             for (j = 1; j <= y_block_size; j++)
                for (k = 1; k <= z_block_size; k++)
                   bp->array[var][i][j][k] = work[i][j][k];
       }
-}
-
       total_fp_adds += (double) 27*num_active*num_cells;
       total_fp_divs += (double) num_active*num_cells;
    }
@@ -1068,11 +995,9 @@ void stencil_27(int var)
 void stencil_check(int var)
 {
    int in, i, j, k, v;
-   double work[x_block_size+2][y_block_size+2][z_block_size+2];
    block *bp;
 
-#pragma omp parallel default(shared) private(i, j, k, bp, v)
-{
+   //#pragma omp parallel for default(shared) private(i, j, k, bp, v)
    for (in = 0; in < sorted_index[num_refine+1]; in++) {
       bp = &blocks[sorted_list[in].n];
       for (i = 1; i <= x_block_size; i++)
@@ -1080,17 +1005,16 @@ void stencil_check(int var)
             for (k = 1; k <= z_block_size; k++) {
                bp->array[var][i][j][k] = fabs(bp->array[var][i][j][k]);
                if (bp->array[var][i][j][k] >= 1.0) {
-                  bp->array[var][i][j][k] /= (beta + alpha[0] +
+                  bp->array[var][i][j][k] /= (a1 + a0[0] +
                                               bp->array[var][i][j][k]);
                   total_fp_divs += (double) 1;
                   total_fp_adds += (double) 2;
                }
                else if (bp->array[var][i][j][k] < 0.1) {
-                  bp->array[var][i][j][k] *= 10.0 - beta;
+                  bp->array[var][i][j][k] *= 10.0 - a1;
                   total_fp_muls += (double) 1;
                   total_fp_adds += (double) 1;
                }
             }
    }
-}
 }

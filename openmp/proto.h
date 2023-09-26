@@ -56,6 +56,7 @@ void apply_bc(int, block *, int, int);
 // comm_parent.c
 void comm_parent(void);
 void comm_parent_reverse(void);
+void comm_parent_unrefine(void);
 void comm_parent_proc(void);
 void add_par_list(par_comm *, num_sz, num_sz, int, int, int);
 void del_par_list(par_comm *, num_sz, num_sz, int, int);
@@ -63,6 +64,7 @@ void del_par_list(par_comm *, num_sz, num_sz, int, int);
 // comm_refine.c
 void comm_refine(void);
 void comm_reverse_refine(void);
+void comm_refine_unrefine(void);
 
 // comm_util.c
 void add_comm_list(int, int, int, int, int, int);
@@ -97,6 +99,7 @@ void init_profile(void);
 
 // rcb.c
 void load_balance(void);
+void rcb(void);
 void exchange(double *, double *, double *);
 void sort(int, int, int);
 int factor(int, int *);
@@ -111,9 +114,15 @@ int refine_level(void);
 void reset_all(void);
 void reset_neighbors(void);
 void redistribute_blocks(double *, double *, double *, double *, int *, int);
+void mark_group(int, int);
+
+// sfc.c
+void sfc(void);
+void sfc_sort(int, int);
+void move_spots(int, int);
+void move_spots_back(void);
 
 // stencil.c
-//void stencil_driver(block *, int, int);
 void stencil_driver(int, int);
 
 // util.c
