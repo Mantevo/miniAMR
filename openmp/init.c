@@ -442,8 +442,10 @@ void init(void)
       bin  = (int *) ma_malloc(max_mesh_size*sizeof(int), __FILE__, __LINE__);
       gbin = (int *) ma_malloc(max_mesh_size*sizeof(int), __FILE__, __LINE__);
    } else {
-      bin  = (int *) ma_malloc(global_active*sizeof(int), __FILE__, __LINE__);
-      gbin = (int *) ma_malloc(global_active*sizeof(int), __FILE__, __LINE__);
+      bin  = (int *) ma_malloc((global_active+1)*sizeof(int), __FILE__,
+                               __LINE__);
+      gbin = (int *) ma_malloc((global_active+1)*sizeof(int), __FILE__,
+                               __LINE__);
    }
    if (stencil == 7)
       f = 0;
