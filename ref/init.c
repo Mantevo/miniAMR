@@ -543,15 +543,15 @@ void init(void)
                            }
                            if (j2 == (init_block_y - 1))
                               if (j == (npy - 1)) { /* 1 boundary */
-                              bp->nei_level[3] = -2;
-                              bp->nei[3][0][0] = 0;
-                           } else {      /* boundary with neighbor core */
-                              bp->nei_level[3] = 0;
-                              bp->nei[3][0][0] = -1 - pos1[i][j+1][k];
-                              add_comm_list(1, o, pos1[i][j+1][k], 10+f,
-                                            bp->cen[2]*mesh_size[0]+bp->cen[0],
-                                            bp->cen[1] + size/2);
-                           }
+                                 bp->nei_level[3] = -2;
+                                 bp->nei[3][0][0] = 0;
+                              } else {      /* boundary with neighbor core */
+                                 bp->nei_level[3] = 0;
+                                 bp->nei[3][0][0] = -1 - pos1[i][j+1][k];
+                                 add_comm_list(1, o, pos1[i][j+1][k], 10+f,
+                                               bp->cen[2]*mesh_size[0]+bp->cen[0],
+                                               bp->cen[1] + size/2);
+                              }
                            else {          /* neighbor on core */
                               bp->nei_level[3] = 0;
                               bp->nei[3][0][0] = o + init_block_x;
