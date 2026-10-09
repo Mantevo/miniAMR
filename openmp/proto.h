@@ -30,6 +30,7 @@
 void print_help_message(void);
 void allocate(void);
 void deallocate(void);
+int auto_direction(void);
 int check_input(void);
 
 // block.c

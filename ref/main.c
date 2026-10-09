@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <float.h>
+#include <math.h>
 #include <mpi.h>
 
 #define MA_MAIN
@@ -183,6 +185,9 @@ int main(int argc, char** argv)
             reorder = 1;
          else
             reorder = 0;
+
+      if (auto_direction())
+         MPI_Abort(MPI_COMM_WORLD, -1);
 
       if (check_input())
          MPI_Abort(MPI_COMM_WORLD, -1);
@@ -652,6 +657,180 @@ void deallocate(void)
 
    free(send_buff);
    free(recv_buff);
+}
+
+int auto_direction(void)
+{
+   printf("---------------------------------------------\n");
+   printf("               Auto Direction\n");
+   printf("---------------------------------------------\n\n");
+
+   if (npx > 0 && npy > 0 && npz > 0)
+      return 0;
+   if (npx > num_pes || npy > num_pes || npz > num_pes) {
+      printf("npx=%d, npy=%d, and npz=%d must be less than num_pes=%d\n\n", npx, npy, npz, num_pes);
+      return 1;
+   }
+
+   // The C standard guarantees that logical expressions evaluate to 1 or 0, so
+   // the number of specified directions can be determined by summing these
+   // variables.
+   const int have_x = (npx != 0);
+   const int have_y = (npy != 0);
+   const int have_z = (npz != 0);
+
+   // Direct fill when two directions are known.
+   if ((have_x + have_y + have_z) == 2) {
+      struct one_missing_direction {
+         int first_known;
+         int second_known;
+         int *missing_ptr;
+         char missing_direction;
+      };
+      struct one_missing_direction omd = { .first_known = 0, .second_known = 0, .missing_ptr = NULL, .missing_direction = '-'};
+
+      if (!have_x) {
+         omd = (struct one_missing_direction){ .first_known = npy, .second_known = npz, .missing_ptr = &npx, .missing_direction = 'x'};
+      } else if (!have_y) {
+         omd = (struct one_missing_direction){ .first_known = npx, .second_known = npz, .missing_ptr = &npy, .missing_direction = 'y'};
+      } else if (!have_z) {
+         omd = (struct one_missing_direction){ .first_known = npx, .second_known = npy, .missing_ptr = &npz, .missing_direction = 'z'};
+      }
+
+      int computed_missing = omd.first_known * omd.second_known;
+      if (computed_missing == 0 || num_pes % computed_missing != 0) {
+         printf("Cannot find a %c such that npx * npy * npz = num_pes (%d * %d * %c = %d)\n\n",
+                omd.missing_direction, omd.first_known, omd.second_known, omd.missing_direction, num_pes);
+         return 1;
+      }
+      *(omd.missing_ptr) = num_pes / computed_missing;
+   }
+
+   /*
+    * When the user specifies at most one direction, a naive constraint-based
+    * solver selects a valid grid configuration. The solver uses each direction's
+    * block size as a weight, prioritizing larger directions when distributing MPI
+    * ranks. It selects the configuration with the lowest standard deviation after
+    * applying these weights to the directions.
+    */
+
+   // One direction is known.
+   if ((have_x + have_y + have_z) == 1) {
+      struct two_missing_direction {
+         int known;
+         int *first_missing_ptr;
+         int *second_missing_ptr;
+         int known_block_size;
+         int first_missing_block_size;
+         int second_missing_block_size;
+         char known_direction;
+         char first_missing_direction;
+         char second_missing_direction;
+      };
+      struct two_missing_direction tmd = {
+         .known = 0, .first_missing_ptr = NULL, .second_missing_ptr = NULL,
+         .known_block_size = 0, .first_missing_block_size = 0, .second_missing_block_size = 0,
+         .known_direction = '-', .first_missing_direction = '-', .second_missing_direction = '-'
+      };
+
+      if (have_x) {
+         tmd = (struct two_missing_direction){
+            .known = npx, .first_missing_ptr = &npy, .second_missing_ptr = &npz,
+            .known_block_size = x_block_size, .first_missing_block_size = y_block_size, .second_missing_block_size = z_block_size,
+            .known_direction = 'x', .first_missing_direction = 'y', .second_missing_direction = 'z'
+         };
+      } else if (have_y) {
+         tmd = (struct two_missing_direction){
+            .known = npy, .first_missing_ptr = &npx, .second_missing_ptr = &npz,
+            .known_block_size = y_block_size, .first_missing_block_size = x_block_size, .second_missing_block_size = z_block_size,
+            .known_direction = 'y', .first_missing_direction = 'x', .second_missing_direction = 'z'
+         };
+      } else if (have_z) {
+         tmd = (struct two_missing_direction){
+            .known = npz, .first_missing_ptr = &npx, .second_missing_ptr = &npy,
+            .known_block_size = z_block_size, .first_missing_block_size = x_block_size, .second_missing_block_size = y_block_size,
+            .known_direction = 'z', .first_missing_direction = 'x', .second_missing_direction = 'y'
+         };
+      }
+
+      double current_stddev = DBL_MAX;
+      for (int first = 1; first <= num_pes; first++) {
+         for (int second = 1; second <= num_pes; second++) {
+            if (tmd.known * first * second != num_pes) {
+               continue;
+            }
+
+            // Use direction block size to add weight on each direction
+            double known_fp = (double)(tmd.known_block_size) / (double)(tmd.known);
+            double first_fp = (double)(tmd.first_missing_block_size) / (double)(first);
+            double second_fp = (double)(tmd.second_missing_block_size) / (double)(second);
+            double mean = (known_fp + first_fp + second_fp) / 3.0;
+
+            double variance =
+               ((known_fp - mean) * (known_fp - mean) +
+                (first_fp - mean) * (first_fp - mean) +
+                (second_fp - mean) * (second_fp - mean)) / 3.0;
+
+            double stddev = sqrt(variance);
+            printf("%c: %d, %c: %d, %c: %d, stddev: %lf\n",
+                   tmd.known_direction, tmd.known, tmd.first_missing_direction, first, tmd.second_missing_direction, second, stddev);
+
+            if (stddev < current_stddev) {
+               *(tmd.first_missing_ptr) = first;
+               *(tmd.second_missing_ptr) = second;
+               current_stddev = stddev;
+            }
+         }
+      }
+      // Separate the final auto-direction message from the log.
+      printf("\n");
+   }
+
+   // Zero direction is known.
+   if ((have_x + have_y + have_z) == 0) {
+      double current_stddev = DBL_MAX;
+      for (int x = 1; x <= num_pes; x++) {
+         for (int y = 1; y <= num_pes; y++) {
+            for (int z = 1; z <= num_pes; z++) {
+               if (x * y * z != num_pes) {
+                  continue;
+               }
+
+               // Use direction block size to add weight on each direction
+               double x_fp = (double)x_block_size / (double)x;
+               double y_fp = (double)y_block_size / (double)y;
+               double z_fp = (double)z_block_size / (double)z;
+               double mean = (x_fp + y_fp + z_fp) / 3.0;
+
+               double variance =
+                  ((x_fp - mean) * (x_fp - mean) +
+                   (y_fp - mean) * (y_fp - mean) +
+                   (z_fp - mean) * (z_fp - mean)) / 3.0;
+
+               double stddev = sqrt(variance);
+               printf("x: %d, y: %d, z: %d, stddev: %lf\n", x, y, z, stddev);
+
+               if (stddev < current_stddev) {
+                  npx = x;
+                  npy = y;
+                  npz = z;
+                  current_stddev = stddev;
+               }
+            }
+         }
+      }
+      // Separate the final auto-direction message from the log.
+      printf("\n");
+   }
+
+   // This could happen
+   if (npx == 0 || npy == 0 || npz == 0) {
+      printf("No valid grid configuration found\n\n");
+      return 1;
+   }
+
+   printf("Selected %d x %d x %d grid\n\n", npx, npy, npz);
+   return 0;
 }
 
 int check_input(void)

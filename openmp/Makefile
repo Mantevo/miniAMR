@@ -18,7 +18,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 clean:
-	rm *.o miniAMR.x
+	rm -f *.o miniAMR.x
 
 # need dependencies
 
